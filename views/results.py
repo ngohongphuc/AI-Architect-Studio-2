@@ -6,6 +6,7 @@ import streamlit as st
 from PIL import Image
 
 import drawing_viewer
+import model_viewer
 import ui_theme as ui
 from monitoring import events
 from monitoring.releases import ARTIFACTS, list_releases, read_artifact, release_path
@@ -19,9 +20,14 @@ from ui_common import (adjustment_panel, approval_box, auto_refresh, current_run
 DOWNLOADS = (
     ("ban_ve_pdf", "PDF", "Bộ bản vẽ", "application/pdf"),
     ("ban_ve_dxf_zip", "DXF", "Bản vẽ AutoCAD ZIP", "application/zip"),
+    ("mo_hinh_3d_glb", "GLB", "Mô hình 3D cho Blender, SketchUp và trình xem 3D", "model/gltf-binary"),
+    ("mo_hinh_3d_dxf", "DXF 3D", "Mô hình 3D cho AutoCAD", "application/dxf"),
     ("thuyet_minh_docx", "DOCX", "Thuyết minh", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"),
     ("du_toan_xlsx", "XLSX", "Dự toán có công thức", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"),
 )
+
+
+MODEL_KINDS = ("mo_hinh_3d_glb", "mo_hinh_3d_dxf")
 
 
 def version_name(program: dict, *, saved: bool = False) -> str:
@@ -55,6 +61,8 @@ def download_cards(state: dict, root: Path, release: Path | None, edition: str, 
         if not files:
             st.caption("Phiên bản này chưa xuất tệp.")
         for kind, label, title, mime in DOWNLOADS:
+            if files and kind in MODEL_KINDS and not files.get(kind):
+                continue            # hồ sơ xuất trước khi có mô hình 3D
             path = asset_path(files.get(kind), root, release)
             data, note = None, "Thiếu tệp." if files else ""
             if path is not None:
@@ -69,6 +77,7 @@ def download_cards(state: dict, root: Path, release: Path | None, edition: str, 
             st.download_button(f"Tải {label}", data or b"", file_name=ARTIFACTS[kind], mime=mime, help=title,
                                disabled=data is None, on_click="ignore", width="stretch",
                                icon={"PDF": ":material/picture_as_pdf:", "DXF": ":material/architecture:",
+                                     "GLB": ":material/view_in_ar:", "DXF 3D": ":material/deployed_code:",
                                      "DOCX": ":material/description:", "XLSX": ":material/table_chart:"}[label],
                                key=f"download_{edition}_{kind}")
             if note:
@@ -164,9 +173,26 @@ def drawing_preview(state: dict, root: Path, release: Path | None, edition: str)
                 st.warning("Ảnh xem trước thuộc phiên bản khác.")
                 return
         viewer_key = f"drawing_{edition}_{state.get('run_id', root.name)}_{index}"
-        drawing_viewer.show(viewer_key, png.read_bytes(), f"{item['ten']} · Tỉ lệ {item['ti_le']}")
+        drawing_viewer.show(viewer_key, png.read_bytes(), f"{item['ten']} · " + (f"Tỉ lệ {item['ti_le']}" if item.get("ti_le") else "Không theo tỉ lệ"))
     except (OSError, ValueError):
         st.info("Không đọc được ảnh xem trước. Dùng tệp PDF nếu còn trong bộ hồ sơ.")
+
+
+def model_preview(state: dict, root: Path, release: Path | None, edition: str) -> None:
+    ui.section("Mô hình 3D", "Dựng từ đúng mặt bằng của phiên bản đang xem. Nội thất và chi tiết cửa chỉ để minh họa.")
+    path = asset_path((state.get("final_files") or {}).get("mo_hinh_3d_glb"), root, release)
+    if path is None and release is None:
+        path = asset_path((state.get("drawings") or {}).get("glb"), root)
+    if path is None or not path.is_file():
+        st.info("Phiên bản này chưa có mô hình 3D. Hồ sơ xuất trước khi có tính năng cần tạo lại để có mô hình.")
+        return
+    info = path.stat()
+    stamp = option_stamp(state.get("program") or {})
+    data, note = cached_document(path, "mo_hinh_3d_glb", stamp, info.st_mtime_ns, info.st_size)
+    if data is None:
+        st.warning(note)
+        return
+    model_viewer.show(f"model_{edition}_{state.get('run_id', root.name)}", data)
 
 
 def description(state: dict, candidate: dict | None) -> None:
@@ -341,7 +367,7 @@ if candidate is None and (state.get("outcome") == "not_passed" or edition == "cu
                if exhausted else "Chưa đạt · xem vấn đề còn lại trong Kiểm định.")
     if edition == "current":
         adjustment_panel(run, live, "results")  # đề xuất có sau bản lưu hồ sơ nên đọc trạng thái mới nhất
-tabs = st.tabs([":material/image: Bản vẽ", ":material/description: Thuyết minh",
+tabs = st.tabs([":material/image: Bản vẽ", ":material/view_in_ar: Mô hình 3D", ":material/description: Thuyết minh",
                 ":material/calculate: Dự toán", ":material/verified_user: Kiểm định"],
                key="results_view", on_change="rerun")
 tab_index = next(index for index, tab in enumerate(tabs) if tab.open)
@@ -351,8 +377,10 @@ with main.container(border=True, key="result_preview"):
     if tab_index == 0:
         drawing_preview(state, root, release, edition)
     elif tab_index == 1:
-        description(state, candidate)
+        model_preview(state, root, release, edition)
     elif tab_index == 2:
+        description(state, candidate)
+    elif tab_index == 3:
         estimate(state, candidate)
     else:
         scoped_candidate = candidate
@@ -385,6 +413,7 @@ with downloads:
             pass
     version = version_name((candidate or state).get("program") or {}, saved=bool(state.get("final_files")))
     unavailable = download_cards(state, root, release, edition, version, updated)
+    missing_model = not (state.get("final_files") or {}).get("mo_hinh_3d_glb")
     if edition != "current" and not candidate:
         st.caption("Đang xem hồ sơ đã lưu của phiên bản này.")
     if edition == "current" and not state.get("final_files"):
@@ -407,7 +436,7 @@ with downloads:
                 st.session_state["results_follow_current"] = run.run_id
                 st.rerun()
             st.warning("Phương án vừa thay đổi. Chọn lại phiên bản để tiếp tục.")
-    elif restartable and unavailable and edition == "current" and state.get("final_files") and run.can_rerun("drafter", live):
+    elif restartable and (unavailable or missing_model) and edition == "current" and state.get("final_files") and run.can_rerun("drafter", live):
         st.caption("Tạo lại sẽ chạy lại các bước xuất hồ sơ và có thể dùng model đã cấu hình.")
         if st.button("Tạo lại hồ sơ hiện hành", width="stretch"):
             if run.rerun_agent("drafter", expected_revision=revision):

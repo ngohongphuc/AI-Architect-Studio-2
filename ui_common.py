@@ -311,7 +311,8 @@ def _show_result(p: dict, k: str) -> None:
     elif agent == "pm_report":
         st.info("Chủ nhiệm đã tổng hợp bộ hồ sơ nháp. Bước tiếp theo sẽ đối chiếu số liệu giữa các tệp.")
         names = {"ban_ve_pdf": "Bộ bản vẽ PDF", "ban_ve_dxf_zip": "Bản vẽ DXF (ZIP)",
-                 "thuyet_minh_docx": "Thuyết minh DOCX", "du_toan_xlsx": "Dự toán XLSX"}
+                 "thuyet_minh_docx": "Thuyết minh DOCX", "du_toan_xlsx": "Dự toán XLSX",
+                 "mo_hinh_3d_glb": "Mô hình 3D GLB", "mo_hinh_3d_dxf": "Mô hình 3D DXF"}
         ui.html_block(ui.kv([(names.get(key, key), ui.esc(str(path).replace("\\", "/").rsplit("/", 1)[-1]))
                              for key, path in (p.get("final_files") or {}).items()]))
     elif agent == "project_manager":

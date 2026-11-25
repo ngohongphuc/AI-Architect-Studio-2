@@ -33,6 +33,7 @@ LAYERS = {
     "DAT": (8, 0.35, "#5d4037"),
     "RANH_GIOI": (1, 0.35, "#c62828"),
     "PHU": (8, 0.13, "#9e9e9e"),
+    "PHOI_CANH": (7, 0.13, "#2b2f33"),
     "KHUNG": (7, 0.35, "#000000"),
     "KHUNG_TEN": (7, 0.25, "#000000"),
 }
@@ -101,6 +102,14 @@ class Sheet:
     def circle(self, c, r, layer="PHU", paper=False, fill=False):
         self._add({"t": "circle", "c": tuple(c), "r": r, "layer": layer, "fill": fill}, paper)
 
+    def lines(self, segments, layer="PHU", paper=False):
+        """Nhiều đoạn thẳng trong một đối tượng (nét phối cảnh có hàng nghìn đoạn)."""
+        self._add({"t": "lines", "segments": [(tuple(a), tuple(b)) for a, b in segments], "layer": layer}, paper)
+
+    def image(self, pixels, extent):
+        """Ảnh nền (mảng RGB) trong khung (x0, y0, x1, y1) của model; chỉ có ở PDF/PNG, DXF giữ nét vector."""
+        self._add({"t": "image", "pixels": pixels, "extent": tuple(extent), "layer": "PHU"}, False)
+
     def arc_pts(self, c, r, a1, a2, n=16):
         return [(c[0] + r * math.cos(math.radians(a1 + (a2 - a1) * i / n)),
                  c[1] + r * math.sin(math.radians(a1 + (a2 - a1) * i / n))) for i in range(n + 1)]
@@ -116,6 +125,8 @@ class Sheet:
                 xs += [e["c"][0] - e["r"], e["c"][0] + e["r"]]; ys += [e["c"][1] - e["r"], e["c"][1] + e["r"]]
             elif e["t"] == "text":
                 xs.append(e["p"][0]); ys.append(e["p"][1])
+            elif e["t"] == "image":
+                xs += [e["extent"][0], e["extent"][2]]; ys += [e["extent"][1], e["extent"][3]]
         if not xs:
             return 0, 0, 1, 1
         return min(xs), min(ys), max(xs), max(ys)
@@ -145,6 +156,7 @@ def render_mpl(sheet: Sheet):
 
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
+    from matplotlib.collections import LineCollection
     from matplotlib.patches import Circle, Polygon
 
     fig = plt.figure(figsize=(PAPER[0] / 25.4, PAPER[1] / 25.4))
@@ -175,6 +187,14 @@ def render_mpl(sheet: Sheet):
                 xs, ys = zip(*pts)
                 ax.plot(xs, ys, color=color, lw=lw, ls=mpl_ls.get(e["ls"], "-"), solid_capstyle=cap,
                         zorder=3 if width else 4)
+            elif e["t"] == "lines":
+                lw = LAYERS.get(e["layer"], LAYERS["PHU"])[1] * pt
+                ax.add_collection(LineCollection([[tp(a), tp(b)] for a, b in e["segments"]], colors=color,
+                                                 linewidths=lw, capstyle="round", zorder=2), autolim=False)
+            elif e["t"] == "image":
+                (x0, y0), (x1, y1) = tp(e["extent"][:2]), tp(e["extent"][2:])
+                ax.imshow(e["pixels"], extent=(x0, x1, y0, y1), zorder=1, interpolation="antialiased")
+                ax.set_xlim(0, PAPER[0]); ax.set_ylim(0, PAPER[1])
             elif e["t"] == "circle":
                 r = e["r"] if paper else e["r"] * k
                 ax.add_patch(Circle(tp(e["c"]), r, facecolor=color if e.get("fill") else "none",
@@ -227,6 +247,9 @@ def render_dxf(sheet: Sheet, path) -> None:
                                         dxfattribs=attribs)
                 if e.get("width") and not paper:
                     pl.dxf.const_width = e["width"] * 1000
+            elif e["t"] == "lines":
+                for a, b in e["segments"]:
+                    msp.add_line(sheet.to_dxf(a, paper), sheet.to_dxf(b, paper), dxfattribs=attribs)
             elif e["t"] == "circle":
                 r = e["r"] * sheet.scale if paper else e["r"] * 1000
                 msp.add_circle(sheet.to_dxf(e["c"], paper), r, dxfattribs=attribs)

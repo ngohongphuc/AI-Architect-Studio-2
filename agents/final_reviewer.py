@@ -2,6 +2,7 @@
 from collections import Counter
 from io import StringIO
 from math import isclose
+from pathlib import Path
 from zipfile import ZipFile
 
 import ezdxf
@@ -19,6 +20,8 @@ from tools.design_option import option_stamp
 from tools.docx_writer import vn_num, vnd
 from tools.drawing_plan import fmt_area
 from tools.layout_algorithm import build_area_table
+from tools.drawing_set import SHEETS_3D
+from tools.model3d import dxf_matches, glb_bytes
 
 
 def _drawing_matches(files: dict, state: dict) -> bool:
@@ -26,7 +29,8 @@ def _drawing_matches(files: dict, state: dict) -> bool:
     sheets = state["drawings"]["sheets"]
     pdf = PdfReader(files["ban_ve_pdf"])
     stamp = option_stamp(state["program"])
-    if (len(pdf.pages) != len(sheets) or len(sheets) != len(floors) + 4
+    if (len(pdf.pages) != len(sheets) or len(sheets) != len(floors) + 4 + len(SHEETS_3D)
+            or tuple(s["ten"] for s in sheets[-len(SHEETS_3D):]) != tuple(title for title, _ in SHEETS_3D)
             or (stamp and (pdf.metadata or {}).get("/Subject") != stamp)):
         return False
     with ZipFile(files["ban_ve_dxf_zip"]) as archive:
@@ -67,6 +71,13 @@ def _drawing_matches(files: dict, state: dict) -> bool:
             if labels != expected:
                 return False
     return True
+
+
+def _model_matches(files: dict, state: dict) -> bool:
+    """Mô hình 3D phải đúng là mô hình dựng từ mặt bằng và phương án đang đối chiếu."""
+    layout, program = state["layout"], state["program"]
+    return (Path(files["mo_hinh_3d_glb"]).read_bytes() == glb_bytes(layout, program)
+            and dxf_matches(files["mo_hinh_3d_dxf"], layout, program))
 
 
 def _doc_matches(path: str, area: dict, cost: dict) -> bool:
@@ -155,6 +166,8 @@ def audit(state: dict) -> FinalReview:
     checks = (
         ("drafter", "Bản vẽ", "Số tờ, tầng, nhãn phòng hoặc diện tích trên bản vẽ sai.",
          lambda: _drawing_matches(files, state)),
+        ("drafter", "Mô hình 3D", "Mô hình 3D khác mặt bằng hoặc phương án đang chọn.",
+         lambda: _model_matches(files, state)),
         ("cost_estimator", "Dự toán", "Khối lượng, ngân sách hoặc công thức chi phí XLSX sai.",
          lambda: recomputed["tong_chi_phi"] == state["cost"]["tong_chi_phi"]
          and _cost_matches(files["du_toan_xlsx"], area, recomputed)),

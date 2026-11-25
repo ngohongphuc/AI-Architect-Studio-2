@@ -148,10 +148,13 @@ def run_report(state: dict) -> dict:
     doc = write_description_docx({**state, "remaining_issues": issues}, _texts(state), out / "thuyet_minh.docx")
     drawings = state["drawings"]
     files = {"ban_ve_pdf": drawings["pdf"], "ban_ve_dxf_zip": drawings["dxf_zip"],
-             "thuyet_minh_docx": str(doc), "du_toan_xlsx": state["cost_file"]}
+             "thuyet_minh_docx": str(doc), "du_toan_xlsx": state["cost_file"],
+             # lượt vẽ trước khi có mô hình 3D: thiếu tệp sẽ được đối chiếu cuối trả về bước bản vẽ
+             **{key: drawings[source] for key, source in (("mo_hinh_3d_glb", "glb"), ("mo_hinh_3d_dxf", "dxf_3d"))
+                if drawings.get(source)}}
     return {"draft_files": files, "description_file": str(doc), "remaining_issues": issues,
             "route": "final_reviewer", "_to": "final_reviewer",
-            "_summary": "Tổng hợp bản vẽ, thuyết minh và dự toán để đối chiếu",
+            "_summary": "Tổng hợp bản vẽ, mô hình 3D, thuyết minh và dự toán để đối chiếu",
             "_output": files}
 
 

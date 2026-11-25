@@ -30,7 +30,8 @@ Họa viên của nhóm: đặt từng phòng vào lô đất với tọa độ 
 - `build_area_table()`: diện tích xây dựng, mật độ, diện tích sàn từng tầng, từng phòng, số phòng theo loại. Đây là nguồn số liệu duy nhất cho Kiểm định, Dự toán và Thuyết minh.
 
 ### 3. Xuất bộ bản vẽ
-- Số tờ = số tầng + 4: mặt bằng tổng thể, mặt bằng từng tầng, mái, mặt đứng, mặt cắt.
+- Số tờ = số tầng + 7: mặt bằng tổng thể, mặt bằng từng tầng, mái, mặt đứng, mặt cắt và ba tờ 3D (phối cảnh mặt tiền, trục đo tổng thể, tách tầng).
+- Kèm mô hình 3D `mo_hinh_3d.glb` và `mo_hinh_3d.dxf` dựng từ cùng hình học.
 - Mỗi tờ có khung tên và dấu phương án/phiên bản; xuất PDF đóng tập, DXF từng tờ (kèm ZIP) và PNG xem trước.
 
 ### 4. Ghi phiên bản

@@ -25,6 +25,7 @@ def check(label: str, rule: str) -> dict:
 
 
 PACKAGE = ("ban_ve_pdf:pdf", "ban_ve_dxf_zip:zip", "thuyet_minh_docx:docx", "du_toan_xlsx:xlsx")
+PACKAGE_3D = (*PACKAGE, "mo_hinh_3d_glb:glb", "mo_hinh_3d_dxf:dxf")
 COMPARE = (
     fields("Bảng kết quả đối chiếu có danh sách phương án và đầu mối xử lý", "options:items", "route:text"),
     check("Mã phương án được đối chiếu đầy đủ và mã đề xuất thuộc nhóm khả thi", "options-v1"),
@@ -113,7 +114,7 @@ STAGE_RUBRICS = {
         check("Ghi vấn đề cần sửa, vấn đề còn lại hoặc phản hồi đã xử lý", "repair-handoff-v1"),
     ),
     "pm_report": (
-        fields("Manifest hồ sơ nháp có tham chiếu đủ bốn loại tài liệu", *("draft_files." + f for f in PACKAGE)),
+        fields("Manifest hồ sơ nháp có tham chiếu đủ tài liệu và mô hình 3D", *("draft_files." + f for f in PACKAGE_3D)),
         equal("Tệp bản vẽ và dự toán trong gói khớp đầu vào",
               ("drawings.pdf", "draft_files.ban_ve_pdf"), ("drawings.dxf_zip", "draft_files.ban_ve_dxf_zip"),
               ("cost_file", "draft_files.du_toan_xlsx")),
@@ -134,9 +135,9 @@ STAGE_RUBRICS = {
         fields("Đã bàn giao đề xuất cho chủ nhà", "adjustment.de_xuat:list"),
     ),
     "publish": (
-        fields("Manifest hồ sơ xuất có tham chiếu đủ PDF, DXF ZIP, DOCX và XLSX",
-               *("final_files." + f for f in PACKAGE)),
-        check("Tên bốn tệp trong gói xuất khớp gói đã đối chiếu", "publish-files-v1"),
+        fields("Manifest hồ sơ xuất có tham chiếu đủ PDF, DXF ZIP, DOCX, XLSX và mô hình 3D",
+               *("final_files." + f for f in PACKAGE_3D)),
+        check("Tên các tệp trong gói xuất khớp gói đã đối chiếu", "publish-files-v2"),
         "Đánh giá cách đóng gói, nhận diện phiên bản và khả năng truy xuất bộ hồ sơ.",
         fields("Gói xuất có tham chiếu nhật ký CSV", "final_files.timeline_csv:csv"),
     ),
@@ -444,9 +445,9 @@ def final_route(inputs: dict, output: dict) -> Evidence:
     return measured(output["route"] == expected, f"{len(issues)} sai lệch ghi nhận · Nhánh {output['route']} · Dự kiến {expected}.")
 
 
-def publish_files(inputs: dict, output: dict) -> Evidence:
+def publish_files(inputs: dict, output: dict, package: tuple = PACKAGE) -> Evidence:
     mismatches = []
-    for field in PACKAGE:
+    for field in package:
         key, _ = field.split(":")
         first, last = read(inputs, f"draft_files.{key}"), read(output, f"final_files.{key}")
         if not text(first) or not text(last):
@@ -454,7 +455,12 @@ def publish_files(inputs: dict, output: dict) -> Evidence:
         if first.replace("\\", "/").split("/")[-1] != last.replace("\\", "/").split("/")[-1]:
             mismatches.append(key)
     return measured(not mismatches, "Tên tệp lệch ở " + ", ".join(mismatches) if mismatches
-                    else "Bốn tên tệp trong manifest khớp gói nháp đã giao. Chỉ đối chiếu tham chiếu đã lưu.")
+                    else f"{'Bốn' if package is PACKAGE else 'Sáu'} tên tệp trong manifest khớp gói nháp đã giao. "
+                         "Chỉ đối chiếu tham chiếu đã lưu.")
+
+
+def publish_files_3d(inputs: dict, output: dict) -> Evidence:
+    return publish_files(inputs, output, PACKAGE_3D)
 
 
 def adjustment_proposals(inputs: dict, output: dict) -> Evidence:
@@ -491,7 +497,7 @@ CHECKS = {
     "concept-floors-v1": concept_floors, "room-counts-v1": room_counts, "program-v1": program_consistency,
     "options-v1": option_consistency, "drawing-area-v1": drawing_area, "evidence-v1": regulation_evidence,
     "fengshui-v1": fengshui, "cost-math-v1": cost_math, "repair-route-v1": repair_route, "repair-handoff-v1": repair_handoff,
-    "final-floors-v1": final_floors, "final-route-v1": final_route, "publish-files-v1": publish_files,
+    "final-floors-v1": final_floors, "final-route-v1": final_route, "publish-files-v1": publish_files, "publish-files-v2": publish_files_3d,
     "adjustment-v1": adjustment_proposals,
     "custom-note-v1": custom_note,
 }

@@ -1,6 +1,6 @@
 # AI Architect Studio
 
-Ứng dụng Python/Streamlit chuyển yêu cầu thiết kế nhà ở bằng tiếng Việt thành bản vẽ PDF/DXF, thuyết minh DOCX và dự toán XLSX. Chín agent phối hợp qua LangGraph và dùng chung brief, chương trình phòng, hình học mặt bằng và bảng diện tích. [Kế hoạch đề tài ban đầu](docs/planqlda.md) mô tả mô hình 5 agent trước khi nâng cấp.
+Ứng dụng Python/Streamlit chuyển yêu cầu thiết kế nhà ở bằng tiếng Việt thành bản vẽ PDF/DXF, mô hình 3D GLB/DXF, thuyết minh DOCX và dự toán XLSX. Chín agent phối hợp qua LangGraph và dùng chung brief, chương trình phòng, hình học mặt bằng và bảng diện tích. [Kế hoạch đề tài ban đầu](docs/planqlda.md) mô tả mô hình 5 agent trước khi nâng cấp.
 
 ## Chạy trên Windows PowerShell
 
@@ -44,7 +44,7 @@ Tab **Hiệu suất** mặc định xem dữ liệu thật và có biểu đồ 
 
 Bảng ghi công việc thực thi từ backend vào SQLite `monitoring/logs.db`. Các lượt cũ vẫn có nhật ký bàn giao. Kịch bản mô phỏng 3D chạy trong trình duyệt và tách khỏi bảng công việc. Số lượt gọi phản ánh lời gọi model mà ứng dụng quan sát được. Chi phí được ghi khi model cung cấp giá trị hoặc khi có đơn giá `LLM_PRICE_PER_MTOK` để tính ước lượng từ token.
 
-Trong **Kết quả**, chọn **Dự án** và **Phương án / phiên bản**. Tab **Bản vẽ** mở đầu tiên và cho chọn tờ, phóng to, kéo, vừa khung hoặc mở rộng. Các tab **Thuyết minh**, **Dự toán** và **Kiểm định** hiển thị theo cùng phiên bản. Panel **Tải hồ sơ** bật nút PDF, ZIP DXF, DOCX và XLSX theo tệp đã đối chiếu. Mở **So sánh các phương án hiện hành** để xem các phương án và những giả định đã lưu. Chọn phiên bản chỉ đổi nội dung đang xem. Dùng nút **Chọn phương án và tạo lại hồ sơ** khi muốn áp dụng phương án khả thi khác vào lượt có checkpoint. Thao tác này chạy lại các bước phụ thuộc và có thể dùng model đã cấu hình.
+Trong **Kết quả**, chọn **Dự án** và **Phương án / phiên bản**. Tab **Bản vẽ** mở đầu tiên và cho chọn tờ, phóng to, kéo, vừa khung hoặc mở rộng. Tab **Mô hình 3D** cho xoay, ẩn/hiện từng tầng và cắt ngang ngôi nhà. Các tab **Thuyết minh**, **Dự toán** và **Kiểm định** hiển thị theo cùng phiên bản. Panel **Tải hồ sơ** bật nút PDF, ZIP DXF, GLB, DXF 3D, DOCX và XLSX theo tệp đã đối chiếu. Mở **So sánh các phương án hiện hành** để xem các phương án và những giả định đã lưu. Chọn phiên bản chỉ đổi nội dung đang xem. Dùng nút **Chọn phương án và tạo lại hồ sơ** khi muốn áp dụng phương án khả thi khác vào lượt có checkpoint. Thao tác này chạy lại các bước phụ thuộc và có thể dùng model đã cấu hình.
 
 Trong **Cấu hình**, tab **Chế độ chạy** lưu tùy chọn duyệt, vòng sửa và phong thủy cho bản nháp mới trong phiên hiện tại. Danh sách bước duyệt chỉ chỉnh được ở chế độ **Chọn bước cần duyệt**. **Model & API** hiển thị trạng thái cấu hình tại máy. **Tài liệu tham chiếu** cho tìm, xem văn bản và tải tệp dữ liệu đang có. Việc bổ sung hoặc gỡ tài liệu thực hiện trong thư mục dữ liệu của máy chủ.
 
@@ -79,11 +79,11 @@ Trên macOS/Linux, dùng `python3 -m venv .venv` và thay `.\.venv\Scripts\pytho
 | Phân tích yêu cầu (`requirements_analyst`) | Mô tả tiếng Việt | `Brief` Pydantic, giả định, câu hỏi và mâu thuẫn. Hỏi trước khi vẽ nếu thiếu kích thước hoặc yêu cầu xung đột. Số phòng ngủ và ngân sách có thể dùng giá trị tạm để lập phương án. |
 | Kiến trúc sư ý tưởng (`concept_architect`) | Brief và phản hồi quy mô | Số tầng đề xuất, phong cách, vật liệu, giải pháp thông gió và chiếu sáng. Chuyển định hướng sang công năng để lập hoặc điều chỉnh chương trình phòng. |
 | Thiết kế công năng (`architect`) | Brief, ý tưởng và phản hồi | Ba phương án A/B/C hoặc phương án đã chỉnh, tầng và danh mục phòng, diện tích mong muốn, kích thước tham chiếu, quan hệ kề và vị trí ưu tiên. |
-| Triển khai bản vẽ (`drafter`) | Brief và chương trình phòng | Hình học, bảng diện tích thực tế và PDF/DXF đồng nguồn. Nếu không thể bố trí, gửi lỗi về công năng. |
+| Triển khai bản vẽ (`drafter`) | Brief và chương trình phòng | Hình học, bảng diện tích thực tế, PDF/DXF và mô hình 3D đồng nguồn. Nếu không thể bố trí, gửi lỗi về công năng. |
 | Kiểm định quy chuẩn (`reviewer`) | Brief, hình học và bảng diện tích | Kiểm tra hình học bằng Python, ngưỡng tham chiếu, nguồn, phạm vi và kết luận cho từng tiêu chí. Trả lỗi bố trí về công năng và lỗi quy mô về ý tưởng. |
 | Tư vấn phong thủy (`fengshui_advisor`) | Hướng nhà, dữ liệu gia chủ và bố trí | Gợi ý Bát trạch và cách bố trí. Chỉ chạy khi bật và không ảnh hưởng kết luận quy chuẩn. |
 | Dự toán chi phí (`cost_estimator`) | Bố trí của từng phương án, bảng diện tích và ngân sách | Tính chi phí từng phương án bằng Python trước khi vẽ. Xuất XLSX có công thức cho phương án chọn. Phản hồi khi chi phí vượt ngân sách đã nhập quá 10%. |
-| Kiểm tra hồ sơ cuối (`final_reviewer`) | Brief, hình học, PDF, ZIP DXF, DOCX và XLSX | Kiểm tra số phòng, số tầng, diện tích, chi phí và công thức từ tệp thực. Sai lệch được chuyển về bước tạo dữ liệu sai. |
+| Kiểm tra hồ sơ cuối (`final_reviewer`) | Brief, hình học, PDF, ZIP DXF, mô hình 3D, DOCX và XLSX | Kiểm tra số phòng, số tầng, diện tích, chi phí và công thức từ tệp thực. Sai lệch được chuyển về bước tạo dữ liệu sai. |
 
 ## Luồng và trạng thái
 

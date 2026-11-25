@@ -15,6 +15,8 @@ ARTIFACTS = {
     "ban_ve_dxf_zip": "ban_ve_dxf.zip",
     "thuyet_minh_docx": "thuyet_minh.docx",
     "du_toan_xlsx": "du_toan.xlsx",
+    "mo_hinh_3d_glb": "mo_hinh_3d.glb",
+    "mo_hinh_3d_dxf": "mo_hinh_3d.dxf",
 }
 
 VIEW_KEYS = ("run_id", "program", "brief", "user_request", "concept", "area_table", "review", "cost",
@@ -142,6 +144,15 @@ def _matches_stamp(data: bytes, kind: str, stamp: str) -> bool:
             return workbook.properties.identifier == stamp
         finally:
             workbook.close()
+    if kind == "mo_hinh_3d_glb":
+        from tools.model3d import glb_header
+
+        return glb_header(data)["asset"]["extras"]["AI_ARCHITECT_OPTION"] == stamp
+    if kind == "mo_hinh_3d_dxf":
+        import ezdxf
+
+        doc = ezdxf.read(StringIO(data.decode("utf-8-sig"), newline=None))
+        return doc.ezdxf_metadata().get("AI_ARCHITECT_OPTION") == stamp
     if kind == "ban_ve_dxf_zip":
         import ezdxf
 

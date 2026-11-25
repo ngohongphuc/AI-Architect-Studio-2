@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Mô hình 3D</title>
+  <link rel="stylesheet" href="./viewer.css">
+  <script type="importmap">{"imports":{"three":"./vendor/three.module.min.js"}}</script>
+  <script type="module" src="./viewer.js"></script>
+</head>
+<body>
+  <main id="viewer">
+    <div class="toolbar">
+      <div class="group" role="group" aria-label="Góc nhìn">
+        <button type="button" data-view="street">Mặt tiền</button>
+        <button type="button" data-view="axon">Tổng thể</button>
+        <button type="button" data-view="back">Phía sau</button>
+        <button type="button" data-view="top">Từ trên xuống</button>
+      </div>
+      <div class="group" id="floors" role="group" aria-label="Ẩn hiện từng phần"></div>
+      <label class="cut">Cắt ngang
+        <input id="cut" type="range" min="0" max="100" value="100" step="0.5">
+        <output id="cut-value">Không cắt</output>
+      </label>
+    </div>
+    <div id="stage"><p id="message" role="status">Đang tải mô hình…</p></div>
+    <p id="caption">Kéo để xoay · Chuột phải kéo để di chuyển · Cuộn để thu phóng</p>
+  </main>
+</body>
+</html>

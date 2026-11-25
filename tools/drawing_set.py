@@ -1,4 +1,4 @@
-"""Lập và xuất bộ bản vẽ thiết kế sơ bộ: PDF đóng tập, DXF từng bản vẽ, PNG xem trước, ZIP."""
+"""Lập và xuất bộ bản vẽ thiết kế sơ bộ: PDF đóng tập, DXF từng bản vẽ, PNG xem trước, ZIP và mô hình 3D."""
 from __future__ import annotations
 
 import zipfile
@@ -6,10 +6,16 @@ from datetime import date
 from pathlib import Path
 
 from tools.design_option import option_label, option_stamp
+from tools.drawing_3d import draw_axonometric, draw_floor_stack, draw_perspective
 from tools.drawing_elevation import draw_front_elevation, draw_long_section
 from tools.drawing_plan import draw_floor_plan, draw_roof_plan, draw_site_plan
+from tools.model3d import export_model
 from tools.sheet import Sheet, render_dxf, render_mpl
 from tools.title_block import draw_frame
+
+
+SHEETS_3D = (("Phối cảnh mặt tiền", draw_perspective), ("Phối cảnh trục đo tổng thể", draw_axonometric),
+             ("Phối cảnh tách tầng", draw_floor_stack))
 
 
 def sheet_info(brief: dict, version: int) -> dict:
@@ -49,6 +55,10 @@ def build_sheets(brief: dict, program: dict, layout: dict, area: dict, version: 
     s = Sheet(f"KT-{n + 4:02d}", "Mặt cắt dọc A-A", info)
     draw_long_section(s, layout)
     sheets.append(s)
+    for index, (title, draw) in enumerate(SHEETS_3D, start=n + 5):
+        s = Sheet(f"KT-{index:02d}", title, {**info, "co_ti_le": False})
+        draw(s, layout)
+        sheets.append(s)
     for s in sheets:
         s.fit()
         draw_frame(s)
@@ -85,11 +95,11 @@ def export_drawings(brief: dict, program: dict, layout: dict, area: dict, out_di
             plt.close(fig)
             dxf = dxf_dir / f"{s.code}.dxf"
             render_dxf(s, dxf)
-            index.append({"so_hieu": s.code, "ten": s.title, "ti_le": f"1:{s.scale}", "png": str(png),
+            index.append({"so_hieu": s.code, "ten": s.title, "ti_le": f"1:{s.scale}" if s.info.get("co_ti_le", True) else "", "png": str(png),
                           "dxf": str(dxf)})
     zip_path = out_dir / "ban_ve_dxf.zip"
     with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as z:
         for item in index:
             z.write(item["dxf"], arcname=Path(item["dxf"]).name)
     return {"pdf": str(pdf_path), "dxf_zip": str(zip_path), "dxf_dir": str(dxf_dir), "sheets": index,
-            "version": version, "phuong_an": option_label(program)}
+            "version": version, "phuong_an": option_label(program), **export_model(layout, program, out_dir)}
