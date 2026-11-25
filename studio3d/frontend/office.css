@@ -114,6 +114,50 @@ button:focus-visible, [tabindex]:focus-visible {
 }
 [data-status="error"] { --dot: #ad4b4b; --status-bg: #f9e9e6; --status-ink: #852e2d; }
 
+/* Trạng thái agent: màu + chữ + kiểu chấm, không dựa riêng vào màu */
+[data-kind="working"] { --dot: #fff; --status-bg: #16786b; --status-ink: #fff; --edge: #16786b; }
+[data-kind="user"] { --dot: #b06a10; --status-bg: #fbe6bd; --status-ink: #6b3c05; --edge: #c98a26; }
+[data-kind="error"] { --dot: #fff; --status-bg: #b23b38; --status-ink: #fff; --edge: #b23b38; }
+[data-kind="paused"] { --dot: #51608a; --status-bg: #e4e8f4; --status-ink: #374571; --edge: #7d8bb5; }
+[data-kind="next"] { --dot: #2a6f9e; --status-bg: #e1eff8; --status-ink: #1d557c; --edge: #6ea6cb; }
+[data-kind="queued"], [data-kind="idle"], [data-kind="off"] {
+  --dot: transparent; --status-bg: #f3f3ef; --status-ink: #55645f; --edge: #dfe2db;
+}
+[data-kind="idle"] { --status-bg: #e8f1ec; --status-ink: #3c5f51; }
+.status[data-kind="idle"]::before { box-shadow: inset 0 0 0 1.5px #5b8672; }
+.status[data-kind="queued"]::before { box-shadow: inset 0 0 0 1.5px #a3aca7; }
+.status[data-kind="off"] { text-decoration: line-through; }
+.status[data-kind="working"]::before { animation: status-pulse 1.3s ease-in-out infinite; }
+@keyframes status-pulse { 50% { opacity: .25; } }
+@media (prefers-reduced-motion: reduce) { .status[data-kind="working"]::before { animation: none; } }
+
+.board { border-bottom: 1px solid var(--line); padding: 8px 11px; background: #fbfbf8; }
+.board > summary { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; cursor: pointer; font-size: .88rem; }
+.board > summary::before { content: "▸"; color: var(--muted); }
+.board[open] > summary::before { content: "▾"; }
+.board-counts { display: inline-flex; flex-wrap: wrap; gap: 5px; }
+.board-counts .status { font-size: .74rem; padding: 2px 8px; text-decoration: none; }
+.board-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(208px, 1fr)); gap: 7px; margin-top: 9px; }
+.board-card {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 4px 8px;
+  padding: 7px 9px; min-height: 52px; text-align: left; font: inherit; color: inherit; background: var(--paper);
+  border: 1px solid var(--edge, var(--line)); border-left-width: 4px; border-radius: 8px;
+}
+button.board-card { cursor: pointer; }
+button.board-card:hover { background: #f1f7f4; }
+.board-card[aria-pressed="true"] { box-shadow: 0 0 0 2px var(--ink); }
+.board-card[data-kind="working"] { background: #edf8f4; }
+.board-card[data-kind="user"] { background: #fffaf0; }
+.board-card[data-kind="error"] { background: #fdf3f1; }
+.board-card[data-kind="queued"] { border-style: dashed; border-left-style: solid; }
+.board-card[data-kind="off"] { opacity: .65; }
+.board-name { display: flex; align-items: center; gap: 6px; min-width: 0; font-size: .84rem; font-weight: 700; }
+.board-tag { font-size: .66rem; font-weight: 600; color: var(--muted); border: 1px solid var(--line); border-radius: 4px; padding: 0 4px; }
+.board-card .status { font-size: .7rem; padding: 2px 7px; white-space: nowrap; }
+.board-detail { grid-column: 1 / -1; font-size: .74rem; color: var(--muted); overflow-wrap: anywhere; }
+.board-time { font-variant-numeric: tabular-nums; }
+.activity-detail { margin: 5px 0 0; }
+
 .office-body { display: grid; grid-template-columns: minmax(0, 7fr) minmax(240px, 3fr); }
 .panel-collapsed .office-body { grid-template-columns: minmax(0, 1fr); }
 .workspace, .scene-area { min-width: 0; }
@@ -193,10 +237,12 @@ button:focus-visible, [tabindex]:focus-visible {
   border-radius: 50%;
   background: var(--agent-color);
 }
-.desk-label[aria-pressed="true"] { color: #fff; background: var(--ink); border-color: var(--ink); }
-.desk-label[data-working="true"] { border: 2px solid #1a887a; padding: 3px 6px; }
-.desk-label[data-attention]:not([data-attention=""]) { border: 2px solid #b17c26; padding: 3px 6px; }
-.desk-label[data-attention="error"] { border-color: #bd4840; }
+.desk-label:is([data-kind="working"], [data-kind="user"], [data-kind="error"], [data-kind="paused"], [data-kind="next"]) {
+  border: 2px solid var(--edge); padding: 3px 6px; background: var(--status-bg); color: var(--status-ink);
+}
+.desk-label[data-kind="queued"] { border-style: dashed; color: #66756f; }
+.desk-label[data-kind="off"] { opacity: .6; text-decoration: line-through; }
+.desk-label[aria-pressed="true"] { outline: 2px solid var(--ink); outline-offset: 1px; }
 .scene-deliveries {
   position: absolute;
   z-index: 3;

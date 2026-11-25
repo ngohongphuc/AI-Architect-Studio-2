@@ -122,3 +122,32 @@ def test_studio_separates_verified_violation_from_running_agent():
     assert data["quality"]["regulatory"] == "Không đạt do vi phạm"
     assert data["quality"]["unverified"] == 0
     assert data["quality"]["findings"][0]["source"] == "Nguồn kiểm thử"
+
+
+def test_agent_activity_fields():
+    running = {"id": 1, "agent": "drafter", "status": "running", "time": "10:00:00", "summary": "Đang xử lý",
+               "occurred_at": "2026-11-25T10:00:00+00:00"}
+    custom = {"id": 2, "agent": "custom_x", "status": "running", "time": "10:00:00", "summary": "Đang xử lý",
+              "occurred_at": "2026-11-25T10:00:01+00:00"}
+    state = {"agent_settings": {"custom_agents": [{"id": "custom_x", "name": "Kết cấu", "role": "Kỹ sư"}]}}
+    data = office_data(state, [running, custom], {}, run_id="r", status="running", current="drafter",
+                       step_name="Triển khai bản vẽ")
+    drafter = next(a for a in data["agents"] if a["id"] == "drafter")
+    assert (drafter["step"], drafter["since"]) == ("Triển khai bản vẽ", running["occurred_at"])
+    assert [(h["name"], h["status"], h["since"]) for h in data["helpers"]] == [("Kết cấu", "running", custom["occurred_at"])]
+    paused = office_data(state, [running, custom], {}, run_id="r", status="paused", current="reviewer")
+    assert next(a for a in paused["agents"] if a["id"] == "reviewer")["status"] == "paused"
+    assert paused["helpers"][0]["status"] == "paused" and paused["helpers"][0]["since"] is None
+    waiting = office_data({}, [], {}, run_id="r", status="awaiting_approval", current="drafter", upcoming="reviewer")
+    assert waiting["run"]["upcoming"] == "reviewer" and waiting["helpers"] == []
+
+
+def test_new_task_of_same_agent_is_not_reported_as_rework():
+    from graph import run_design
+    from main import SAMPLE
+    from monitoring import events
+
+    state = run_design(SAMPLE.replace("2,5 tỷ", "8 tỷ"), persist=False)
+    rows = [(e["agent"], e["status"]) for e in events.get_events(state["run_id"])]
+    assert state["iteration"] == 0 and rows.count(("project_manager", "running")) >= 3
+    assert not any(status == "revising" for _, status in rows)

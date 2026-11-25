@@ -1,3 +1,5 @@
+import { activity, countKinds, elapsed, KINDS } from "./status.mjs";
+
 const $ = (id) => document.getElementById(id);
 const buttons = ["zoom-out", "zoom-in", "reset", "enlarge"];
 const views = ["scene", "flow"];
@@ -9,7 +11,6 @@ const statuses = {
 };
 const workStates = new Set(["running", "revising"]);
 const lounge = {id: "lounge", name: "Góc nghỉ", description: "Chỗ nghỉ cạnh lối đi dành cho hoạt ảnh khi rảnh."};
-const attention = new Set(["error", "feedback", "awaiting_approval", "needs_input"]);
 const storageKey = "ai-architect-office-3d.v1";
 const motionQuery = matchMedia("(prefers-reduced-motion: reduce)");
 const state = {
@@ -73,6 +74,27 @@ function fitFrame() {
 
 new ResizeObserver(fitFrame).observe($("office"));
 
+function agentBadge(node, agent) {
+  const {kind, label} = activity(agent, state.data.run);
+  node.dataset.kind = kind;
+  return statusBadge(node, "agent", label);
+}
+
+const DESK_TEXT = {working: "Đang làm", user: "Chờ bạn", error: "Lỗi", paused: "Tạm dừng", next: "Sắp tới",
+  queued: "Chờ lượt", idle: "Rảnh"};
+
+function deskLabel(badge, agent) {
+  const {kind, label} = activity(agent, state.data.run);
+  badge.dataset.kind = kind;
+  badge.title = agent.name + " · " + label;
+  badge.setAttribute("aria-label", badge.title);
+  const text = agent.short + (DESK_TEXT[kind] ? " · " + DESK_TEXT[kind] : "");
+  if (badge.textContent !== text) {
+    badge.textContent = text;
+    labelSizes.delete(agent.id);
+  }
+}
+
 const roomButtons = new Map();
 const deskLabels = new Map();
 const listEntries = new Map();
@@ -90,7 +112,7 @@ function agentChoice(agent) {
   const b = trigger("agent-choice", "", () => choose({agent: agent.id}));
   const dot = element("span", "agent-color");
   dot.style.setProperty("--agent-color", agent.color);
-  const chip = statusBadge(element("span", "status"), agent.status);
+  const chip = agentBadge(element("span", "status"), agent);
   b.append(dot, element("span", "", agent.name), chip);
   pressed(b, state.selection.agent === agent.id);
   return {button: b, chip};
@@ -106,8 +128,6 @@ function buildNavigation() {
   for (const agent of state.data.agents) {
     const badge = trigger("desk-label", agent.short, () => choose({agent: agent.id}));
     badge.style.setProperty("--agent-color", agent.color);
-    badge.setAttribute("aria-label", agent.name);
-    badge.title = agent.name;
     badge.hidden = true;
     deskLabels.set(agent.id, badge);
     $("desk-labels").append(badge);
@@ -131,15 +151,14 @@ function updateNavigation() {
     const badge = deskLabels.get(agent.id);
     const choice = listEntries.get(agent.id);
     pressed(badge, state.selection.agent === agent.id);
-    badge.dataset.working = String(workStates.has(agent.status));
-    badge.dataset.attention = attention.has(agent.status) ? agent.status : "";
-    badge.title = agent.name + " · " + (statuses[agent.status] || agent.status);
+    deskLabel(badge, agent);
     pressed(choice.button, state.selection.agent === agent.id);
-    statusBadge(choice.chip, agent.status);
+    agentBadge(choice.chip, agent);
   }
   for (const button of document.querySelectorAll(".workspace-panel [data-agent]")) {
     pressed(button, state.selection.agent === button.dataset.agent);
   }
+  renderBoard();
   const model = state.data.geometry;
   $("project-model").textContent = model
     ? "Mô hình khối · " + model.floors.length + " tầng" : "Mô hình minh họa";
@@ -227,7 +246,8 @@ function agentInspector(agent) {
   const dot = element("span", "agent-color");
   dot.style.setProperty("--agent-color", agent.color);
   overline.append(dot, element("span", "", room.name));
-  nodes.push(overline, element("h2", "", agent.name), statusBadge(element("span", "status"), agent.status));
+  nodes.push(overline, element("h2", "", agent.name), agentBadge(element("span", "status"), agent),
+    element("p", "note activity-detail", activity(agent, state.data.run).detail));
   nodes.push(element("p", "description", agent.task));
   if (state.managed) nodes.push(trigger("control profile-link", "Mở hồ sơ hiệu suất", () => {
     const nonce = window.crypto?.randomUUID?.() || String(Date.now()) + "-" + Math.random().toString(36).slice(2);
@@ -289,7 +309,7 @@ function renderInspector(reset = false) {
   const room = roomById(state.selection.room);
   const peers = state.data.agents.filter((peer) => peer.room === agent?.room || peer.room === room?.id)
     .map((peer) => peer.status);
-  const key = JSON.stringify([state.mode, state.managed, state.selection, agent, peers,
+  const key = JSON.stringify([state.mode, state.managed, state.selection, agent, peers, state.data.run.status, state.data.run.upcoming,
     state.selection.room === "showcase" ? state.data.geometry : null,
     !agent && !room ? state.data.agents.map((peer) => peer.status) : null]);
   if (!reset && key === inspectorKey) return;
@@ -414,7 +434,7 @@ function workflowNode(id, latest) {
   button.dataset.agent = id;
   const dot = element("span", "agent-color");
   dot.style.setProperty("--agent-color", agent.color);
-  button.append(dot, element("span", "flow-name", agent.name), statusBadge(element("span", "status"), agent.status));
+  button.append(dot, element("span", "flow-name", agent.name), agentBadge(element("span", "status"), agent));
   const active = workStates.has(agent.status)
     || (state.data.run.status === "running" && state.data.run.current === id);
   if (active) button.classList.add("is-current");
@@ -468,11 +488,56 @@ function drawWorkflow() {
   return [handoff, diagram, ...(feedback ? [feedback] : [])];
 }
 
+let boardKey;
+function renderBoard() {
+  const {agents, helpers = [], run} = state.data;
+  const everyone = [...agents, ...helpers];
+  const key = JSON.stringify([state.selection.agent, run.id, run.status, run.upcoming,
+    everyone.map((a) => [a.id, a.name, a.status, a.step, a.since, a.runs, a.version, a.status === "error" && a.summary])]);
+  if (key === boardKey) return;
+  boardKey = key;
+  const counts = countKinds(everyone, run);
+  $("board-counts").replaceChildren(...Object.entries(KINDS)
+    .filter(([kind]) => counts.get(kind) || kind === "working")
+    .map(([kind, name]) => {
+      const chip = element("span", "status", counts.get(kind) + " " + name.toLowerCase());
+      chip.dataset.kind = counts.get(kind) ? kind : "idle";
+      return chip;
+    }));
+  const focused = document.activeElement?.closest?.(".board-card")?.dataset.agent;
+  $("board-cards").replaceChildren(...everyone.map((agent) => {
+    const {kind, detail} = activity(agent, run);
+    const custom = !agent.color;
+    const card = custom ? element("div", "board-card") : trigger("board-card", "", () => choose({agent: agent.id}));
+    card.dataset.kind = kind;
+    card.dataset.agent = agent.id;
+    const dot = element("span", "agent-color");
+    dot.style.setProperty("--agent-color", agent.color || "#7b8794");
+    const head = element("span", "board-name");
+    head.append(dot, element("span", "", agent.name));
+    if (custom) head.append(element("span", "board-tag", "tùy biến"));
+    const note = element("span", "board-detail", detail);
+    if (agent.since) {
+      const time = element("span", "board-time", elapsed(agent.since));
+      time.dataset.since = agent.since;
+      note.append(detail ? " · " : "", time);
+    }
+    card.append(head, agentBadge(element("span", "status"), agent), note);
+    if (!custom) pressed(card, state.selection.agent === agent.id);
+    return card;
+  }));
+  if (focused) $("board-cards").querySelector('button[data-agent="' + focused + '"]')?.focus({preventScroll: true});
+}
+
+setInterval(() => {
+  for (const node of document.querySelectorAll("[data-since]")) node.textContent = elapsed(node.dataset.since);
+}, 1000);
+
 let flowKey;
 function renderWorkspace() {
   if (state.workspace !== "flow") return;
   const data = state.data;
-  const key = JSON.stringify([state.visit, data.agents.map((a) => a.status), data.run.current, data.run.fengshui_enabled,
+  const key = JSON.stringify([state.visit, data.agents.map((a) => a.status), data.run.current, data.run.status, data.run.upcoming, data.run.fengshui_enabled,
     data.transfers.at(-1), data.transfers.findLast((event) => event.feedback)]);
   if (flowKey === key) return;
   flowKey = key;
@@ -733,7 +798,7 @@ function advanceDemo() {
   if (feedback) sender.issues = [summary];
   else sender.issues = [];
   if (receiver) {
-    receiver.status = receiver.runs ? "revising" : "running";
+    receiver.status = receiver.runs && data.run.iteration && to !== "project_manager" ? "revising" : "running";
     receiver.input = {che_do: "Mô phỏng", tu_agent: sender.name};
   }
   if (from === "project_manager" && feedback) data.run.iteration += 1;

@@ -51,7 +51,10 @@ def agent_node(agent: str, *, stage: str | None = None, inputs: tuple | None = N
             run_id = state.get("run_id", "local")
             versions = dict(state.get("versions") or {})
             version = versions.get(agent, 0) + 1
-            events.emit(run_id, {"time": now(), "agent": agent, "status": "revising" if version > 1 else "running",
+            # Chỉ là "làm lại" khi chính bước này đã chạy; agent nhận một việc khác thì vẫn là việc mới.
+            again = any(item.get("agent") == agent and item.get("stage") == (stage or agent)
+                        for item in state.get("history") or [])
+            events.emit(run_id, {"time": now(), "agent": agent, "status": "revising" if again else "running",
                                  "to_agent": "", "summary": "Đang xử lý", "tokens": 0, "duration_s": 0.0,
                                  "version": version})
             t_run, t_agent = current_run.set(run_id), current_agent.set(agent)

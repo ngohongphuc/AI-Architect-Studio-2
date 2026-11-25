@@ -8,6 +8,7 @@ import streamlit as st
 
 import ui_theme as ui
 from config import AGENT_ORDER
+from graph import NODE_AGENT
 from llm import agent_model_label
 from monitoring import events
 from monitoring.tracker import tracker
@@ -177,6 +178,16 @@ def status_header(run, state: dict) -> None:
         actions.page_link("views/results.py", label="Xem kết quả", icon=":material/image:", width="stretch")
 
 
+def agent_focus(run) -> dict:
+    """Tên bước đang làm và agent sẽ nhận việc ngay sau điểm duyệt, để ghi rõ trạng thái từng agent."""
+    if run is None:
+        return {}
+    payload = run.interrupt_payload or {}
+    if run.status == "awaiting_approval":
+        return {"step_name": payload.get("title", ""), "upcoming": NODE_AGENT.get(payload.get("next"))}
+    return {"step_name": step_label(run.current_node) if run.status in ("running", "paused") and run.current_node else ""}
+
+
 def waiting_notice(run) -> None:
     """Thông báo nổi một lần cho mỗi điểm duyệt mới, kể cả khi đang cuộn xem phần dưới của trang."""
     payload = run.interrupt_payload or {}
@@ -247,7 +258,8 @@ def monitor() -> None:
             adjustment_panel(live_run, state, "studio")
     action = component.show(office_data(state, event_rows, stats, run_id=live_run.run_id if live_run else None,
                                         status=live_run.status if live_run else "idle",
-                                        current=live_run.step()[1] if live_run else None), mode=mode)
+                                        current=live_run.step()[1] if live_run else None,
+                                        **agent_focus(live_run)), mode=mode)
     if isinstance(action, dict) and action.get("action") == "performance" and action.get("agent") in AGENT_ORDER:
         nonce = action.get("nonce")
         if isinstance(nonce, str) and nonce != st.session_state.get("studio_performance_nonce"):

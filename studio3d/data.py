@@ -168,8 +168,23 @@ def _transfers(event_rows: list[dict], approval_points: list[str], status: str, 
     return transfers[-100:]
 
 
-def office_data(state: dict, event_rows: list[dict], stats: dict, *,
-                run_id: str | None, status: str, current: str | None) -> dict:
+def _helpers(state: dict, latest_events: dict, event_rows: list[dict], status: str) -> list[dict]:
+    """Agent tùy biến của lượt: không có bàn trong cảnh 3D nhưng vẫn có trạng thái trong bảng."""
+    rows = []
+    for spec in (state.get("agent_settings") or {}).get("custom_agents") or []:
+        latest = latest_events.get(spec["id"], {})
+        step = latest.get("status", "waiting")
+        if step in ("running", "revising") and status != "running":
+            step = status if status in ("paused", "stopped", "error") else "waiting"
+        rows.append({"id": spec["id"], "name": spec["name"], "status": step, "summary": latest.get("summary"),
+                     "task": spec.get("role") or "", "step": "",
+                     "since": latest.get("occurred_at") if step in ("running", "revising") else None,
+                     "runs": sum(e["agent"] == spec["id"] and e["status"] == "done" for e in event_rows)})
+    return rows
+
+
+def office_data(state: dict, event_rows: list[dict], stats: dict, *, run_id: str | None, status: str,
+                current: str | None, step_name: str = "", upcoming: str | None = None) -> dict:
     latest_events = {row["agent"]: row for row in event_rows}
     history = {item["agent"]: item for item in state.get("history") or []}
     agents = []
@@ -183,6 +198,8 @@ def office_data(state: dict, event_rows: list[dict], stats: dict, *,
             step = "skipped"
         elif agent == current and status in ("awaiting_approval", "needs_input"):
             step = status
+        elif agent == current and status == "paused":
+            step = "paused"
         elif step in ("running", "revising") and status != "running":
             step = status if status in ("paused", "stopped", "error") else "waiting"
         elif step == "done" and latest.get("feedback"):
@@ -202,6 +219,9 @@ def office_data(state: dict, event_rows: list[dict], stats: dict, *,
             "issues": _issues(agent, state, latest), "summary": (
                 latest.get("summary") if step in ("running", "revising", "error")
                 else info.get("last") or previous.get("summary") or latest.get("summary")),
+            "step": step_name if agent == current and step in (
+                "running", "revising", "awaiting_approval", "paused") else "",
+            "since": latest.get("occurred_at") if step in ("running", "revising") else None,
             "runs": info.get("runs") if latest else None,
             "duration": info.get("duration") if info.get("runs") else None,
             "version": latest.get("version") or previous.get("version"),
@@ -213,9 +233,10 @@ def office_data(state: dict, event_rows: list[dict], stats: dict, *,
     cost = state.get("cost") or {}
     amounts = [row["thanh_tien"] for row in cost.get("hang_muc") or []
                if _finite_number(row.get("thanh_tien")) and row["thanh_tien"] >= 0]
-    return {"rooms": ROOMS, "agents": agents, "transfers": transfers, "geometry": project_geometry(state),
+    return {"rooms": ROOMS, "agents": agents, "helpers": _helpers(state, latest_events, event_rows, status),
+            "transfers": transfers, "geometry": project_geometry(state),
             "quality": _quality(state, checks),
-            "cost_amounts": amounts, "run": {"id": run_id, "status": status, "current": current,
+            "cost_amounts": amounts, "run": {"id": run_id, "status": status, "current": current, "upcoming": upcoming,
                                               "fengshui_enabled": state.get("fengshui_enabled"),
                                               "iteration": state.get("iteration"),
                                               "max_iterations": state.get("max_iterations")}}

@@ -1,6 +1,6 @@
 import { distance, PERSONAL_SPACE, reserve } from "./navigation.mjs";
 
-const FREE = new Set(["waiting", "done"]);
+const FREE = new Set(["waiting", "done", "feedback", "stopped", "skipped"]);
 const HOME_FACING = Math.PI;
 const RETRY = .45;
 const EXCHANGE_TIME = 1.05;
