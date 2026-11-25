@@ -34,15 +34,29 @@ def r2(v: float) -> float:
 # ---------------------------------------------------------------------------
 # Cầu thang
 # ---------------------------------------------------------------------------
-def design_stair(heights: list[float], stair_w: float) -> dict:
+def design_stair(heights: list[float], stair_w: float, *, tune: bool = False) -> dict:
     rules = load_rules()["cau_thang"]
-    tread = 0.26
     gap = 0.1
     flight_w = round((stair_w - gap) / 2, 3)
     per_floor = []
     max_run = 0.0
     for h in heights:
+        tread = 0.26
         n = math.ceil(h / 0.175 - 1e-9)
+        if tune:
+            # Dùng cùng ngưỡng với phép kiểm. Tìm bậc gần cấu hình gốc nhất có thể bố trí.
+            candidates = []
+            for count in range(max(2, math.ceil(h / rules["bac_cao_max"] - EPS)), 2 * rules["so_bac_ve_max"] + 1):
+                rise = h / count
+                low = max(rules["bac_rong_min"], rules["blondel_min"] - 2 * rise)
+                high = rules["blondel_max"] - 2 * rise
+                lower_mm, upper_mm = math.ceil(low * 1000 - EPS), math.floor(high * 1000 + EPS)
+                if lower_mm <= upper_mm:
+                    depth = min(max(round(tread * 1000), lower_mm), upper_mm) / 1000
+                    candidates.append((abs(count - n), abs(depth - tread), count, depth))
+            if not candidates:
+                raise LayoutError("Không bố trí được số bậc và mặt bậc thỏa các ngưỡng cầu thang đang đối chiếu")
+            _, _, n, tread = min(candidates)
         riser = h / n
         ra = math.ceil(n / 2)
         rb = n - ra
@@ -172,12 +186,19 @@ def compute_layout(brief: dict, program: dict) -> dict:
     sf = float(program.get("san_truoc", 0))
     sb = float(program.get("san_sau", 0))
     W = lot_w
+    if lot_w <= 1.9:
+        raise LayoutError("Mặt tiền quá hẹp cho lõi thang và lối đi của mẫu nhà ống hiện tại")
     L = round(lot_l - sf - sb, 3)
     y0, y1 = sf, sf + L
     if L < 8:
         raise LayoutError(f"Chiều sâu xây dựng {L} m quá ngắn")
 
     stair_w = 2.2 if W >= 4.5 else (2.0 if W >= 3.8 else 1.9)
+    tune_stair = bool(program.get("doi_chieu_cau_thang"))
+    if tune_stair:
+        stair_w = max(stair_w, r2(2 * load_rules()["cau_thang"]["be_rong_ve_min"] + .1))
+        if stair_w >= W:
+            raise LayoutError("Không đủ bề ngang cho vế thang và lối đi theo ngưỡng đang đối chiếu")
     hall_w = 1.1 if W >= 4.5 else 1.0
     sky_w = round(W - stair_w - hall_w, 3)
     if sky_w < 0.8:
@@ -186,7 +207,7 @@ def compute_layout(brief: dict, program: dict) -> dict:
     small_w = round(W - hall_w, 3)
 
     heights = _floor_heights(program)
-    stair = design_stair(heights, stair_w)
+    stair = design_stair(heights, stair_w, tune=tune_stair)
     core_len = stair["chieu_dai"]
     avail = L - core_len
     keys = floor_keys(program)
@@ -228,11 +249,13 @@ def compute_layout(brief: dict, program: dict) -> dict:
         front, back = zones[k]
         rooms: list[dict] = []
         strips: list[dict] = []
-        counter = [0]
+        generated = {}
 
         def add_room(name, loai, x, y, w, h, spec=None):
-            counter[0] += 1
-            room = {"id": f"T{idx}-{counter[0]:02d}", "ten": name, "loai": loai, "tang": idx,
+            role = (loai, name)
+            generated[role] = generated.get(role, 0) + 1
+            room_id = (spec or {}).get("id") or f"T{idx}/{loai}/{name}/{generated[role]}"
+            room = {"id": room_id, "ten": name, "loai": loai, "tang": idx,
                     "x": r2(x), "y": r2(y), "w": r2(w), "h": r2(h), "dien_tich": round(w * h, 2)}
             if spec and spec.get("ghi_chu"):
                 room["ghi_chu"] = spec["ghi_chu"]
@@ -279,10 +302,12 @@ def compute_layout(brief: dict, program: dict) -> dict:
 
         ok_f = place_zone(front, y0, F, "front")
         # Lõi
+        core_specs = {room["loai"]: room for room in program[k] if room["loai"] in ("gieng_troi", "thang")}
         core_ids = []
         if sky_w > 0:
-            core_ids.append(add_room("Sân trong" if idx == 1 else "Giếng trời", "gieng_troi", 0, core_y, sky_w, core_len))
-        core_ids.append(add_room("Cầu thang", "thang", sky_w, core_y, stair_w, core_len))
+            core_ids.append(add_room("Sân trong" if idx == 1 else "Giếng trời", "gieng_troi", 0, core_y, sky_w, core_len,
+                                     core_specs.get("gieng_troi")))
+        core_ids.append(add_room("Cầu thang", "thang", sky_w, core_y, stair_w, core_len, core_specs.get("thang")))
         core_ids.append(add_room("Sảnh thang", "hanh_lang", sky_w + stair_w, core_y, hall_w, core_len))
         strips.append({"y": core_y, "d": core_len, "kind": "core", "rooms": core_ids, "zone": "core"})
         ok_b = place_zone(back, core_y + core_len, B, "back")
@@ -294,7 +319,7 @@ def compute_layout(brief: dict, program: dict) -> dict:
                 add_room(program.get("ten_san_truoc", "Sân trước"), "san", 0, 0, W, sf)
             if sb > 0:
                 add_room("Sân sau", "san", 0, y1, W, sb)
-        floors[str(idx)] = {"rooms": rooms, "strips": sorted(strips, key=lambda s: s["y"])}
+        floors[str(idx)] = {"id": f"tang_{idx}", "rooms": rooms, "strips": sorted(strips, key=lambda s: s["y"])}
 
     if not feasible:
         warnings.append("Không đủ chiều sâu để bố trí các phòng với kích thước tối thiểu")
@@ -440,7 +465,7 @@ def build_area_table(layout: dict, brief: dict) -> dict:
                 if "đỗ xe" in r["ten"]:
                     counts["gara"] = counts.get("gara", 0) + 1
                 continue
-            phong.append({"ten": r["ten"], "loai": r["loai"], "dien_tich": r["dien_tich"],
+            phong.append({"id": r["id"], "ten": r["ten"], "loai": r["loai"], "dien_tich": r["dien_tich"],
                           "kich_thuoc": f"{r['w']:.2f} × {r['h']:.2f}"})
             if r["loai"] == "ban_cong":
                 bc += r["dien_tich"]
@@ -452,7 +477,7 @@ def build_area_table(layout: dict, brief: dict) -> dict:
                 san += r["dien_tich"]
             if r["loai"] in ("ngu", "tho", "wc", "gara", "khach", "bep", "lam_viec", "sinh_hoat"):
                 counts[r["loai"]] = counts.get(r["loai"], 0) + 1
-        floors_out.append({"tang": int(k), "ten": f"Tầng {k}", "phong": phong,
+        floors_out.append({"id": f"tang_{k}", "tang": int(k), "ten": f"Tầng {k}", "phong": phong,
                            "dien_tich_san": round(san, 2), "ban_cong": round(bc, 2),
                            "san_phoi": round(sp, 2), "gieng_troi": round(gt, 2)})
         tong_san += san; tong_bc += bc; tong_sp += sp; tong_gt += gt

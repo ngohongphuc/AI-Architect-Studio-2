@@ -11,11 +11,15 @@ Khi không cấu hình hoặc gọi lỗi, các hàm trả về None và agent d
 from __future__ import annotations
 
 import importlib
+import importlib.util
 import logging
+import math
 import os
 from functools import lru_cache
 
-import config  # noqa: F401  (nạp .env trước khi đọc biến môi trường)
+import agent_settings
+from config import AGENT_ORDER
+from monitoring.redaction import error_category, redact
 from monitoring.tracker import current_agent, tracker
 
 log = logging.getLogger(__name__)
@@ -28,7 +32,7 @@ PROVIDERS = {
 }
 
 
-AGENTS = ["project_manager", "architect", "drafter", "reviewer", "cost_estimator"]
+AGENTS = AGENT_ORDER
 
 
 def _env(name: str, agent: str | None) -> str | None:
@@ -41,9 +45,8 @@ def _env(name: str, agent: str | None) -> str | None:
     return v.strip() if v else None
 
 
-def agent_config(agent: str | None = None) -> dict:
-    """Cấu hình LLM của một agent: provider, model, temperature."""
-    agent = agent or current_agent.get()
+def env_config(agent: str | None = None) -> dict:
+    """Cấu hình chỉ từ biến môi trường / .env (biến riêng của agent trước, rồi biến chung)."""
     if agent not in AGENTS:
         agent = None
     provider = (_env("LLM_PROVIDER", agent) or "none").lower()
@@ -51,6 +54,28 @@ def agent_config(agent: str | None = None) -> dict:
     return {"agent": agent, "provider": provider, "model": _env("LLM_MODEL", agent) or default_model,
             # Model suy luận của OpenAI (GPT-5/6) không nhận temperature tùy ý -> chỉ gửi khi khai báo rõ
             "temperature": float(t) if (t := _env("LLM_TEMPERATURE", agent)) else (None if provider == "openai" else 0.3)}
+
+
+def agent_config(agent: str | None = None) -> dict:
+    """Cấu hình LLM của một agent: giao diện Quản lý agent → .env riêng của agent → .env chung."""
+    agent = agent or current_agent.get()
+    known = agent in AGENTS or agent_settings.custom_agent(agent) is not None
+    if not known:
+        agent = None
+    override = agent_settings.model_override(agent) if known else {}
+    base = env_config(agent)
+    if not any(override.values()):
+        return {**base, "agent": agent, "source": "env"}
+    provider = override.get("provider") or base["provider"]
+    if override.get("model"):
+        model = override["model"]
+    elif provider == base["provider"]:
+        model = base["model"]
+    else:   # đổi nhà cung cấp mà không ghi model -> model mặc định của nhà cung cấp mới
+        model = PROVIDERS.get(provider, (None, None, None, ""))[3]
+    # Temperature không chỉnh trên giao diện: giữ giá trị của .env khi cùng nhà cung cấp, nếu không thì mặc định.
+    temperature = base["temperature"] if provider == base["provider"] else (None if provider == "openai" else 0.3)
+    return {"agent": agent, "provider": provider, "model": model, "temperature": temperature, "source": "ui"}
 
 
 def provider_name(agent: str | None = None) -> str:
@@ -76,7 +101,14 @@ def _build(provider: str, model: str, temperature: float | None):
     try:
         return klass(**kw, max_retries=1)
     except TypeError:
-        return klass(**kw)
+        try:
+            return klass(**kw)
+        except Exception as error:
+            log.warning("Không khởi tạo được LLM (%s)", type(error).__name__)
+            return None
+    except Exception as error:
+        log.warning("Không khởi tạo được LLM (%s)", type(error).__name__)
+        return None
 
 
 _exhausted: set[tuple[str, str]] = set()   # (provider, model) đã hết quota trong phiên này
@@ -93,7 +125,7 @@ def _mark_if_quota(e: Exception) -> bool:
         c = agent_config()
         if (c["provider"], c["model"]) not in _exhausted:
             log.warning("%s · %s hết quota/rate limit – chuyển sang chế độ quy tắc cho tới khi khởi động lại",
-                        c["provider"], c["model"])
+                        c["provider"], redact(c["model"]))
         _exhausted.add((c["provider"], c["model"]))
         return True
     return False
@@ -116,6 +148,83 @@ def agent_model_label(agent: str) -> str:
     return f"{c['provider']} · {c['model']}" if llm_enabled(agent) else "quy tắc (không LLM)"
 
 
+def configuration_status(agent: str) -> dict[str, str]:
+    """Đọc trạng thái cấu hình mà không khởi tạo client hoặc trả giá trị khóa."""
+    try:
+        config = agent_config(agent)
+    except (ValueError, TypeError):
+        return {"provider": "—", "model": "—", "status": "Cấu hình model thiếu hoặc sai định dạng"}
+    provider, model = config["provider"], config["model"]
+    if provider == "none":
+        return {"provider": "Quy tắc cục bộ", "model": "—", "status": "Không dùng API"}
+    if provider not in PROVIDERS:
+        return {"provider": "Chưa hỗ trợ", "model": "—", "status": "Kiểm tra biến LLM_PROVIDER"}
+    module, _, key_env, _ = PROVIDERS[provider]
+    keys = [os.getenv(item[2], "").strip() for item in PROVIDERS.values() if item[2]]
+    visible_model = "—" if not model or any(key and key in model for key in keys) else model
+    try:
+        available = importlib.util.find_spec(module) is not None
+    except (ImportError, ValueError):
+        available = False
+    if key_env and not os.getenv(key_env, "").strip():
+        status = f"Thiếu {key_env}"
+    elif not available:
+        status = "Thiếu gói kết nối"
+    elif key_env:
+        status = "Đã cấu hình · chưa thử kết nối"
+    else:
+        status = "Model cục bộ · chưa thử kết nối"
+    return {"provider": provider, "model": visible_model, "status": status}
+
+
+def test_connection(provider: str, model: str, temperature: float | None = None, timeout_s: float = 30.0) -> dict:
+    """Gửi một câu ngắn tới model, trả {ok, message, latency_s}. Không ghi token vào lượt thiết kế nào."""
+    import concurrent.futures
+    import time
+
+    provider = (provider or "none").lower()
+    if provider == "none":
+        return {"ok": False, "message": "Chế độ quy tắc không gọi API.", "latency_s": None}
+    if provider not in PROVIDERS:
+        return {"ok": False, "message": f"Nhà cung cấp chưa hỗ trợ: {provider}", "latency_s": None}
+    module, _, key_env, default_model = PROVIDERS[provider]
+    model = model or default_model
+    if key_env and not os.getenv(key_env, "").strip():
+        return {"ok": False, "message": f"Thiếu {key_env} trong .env hoặc biến môi trường.", "latency_s": None}
+    if importlib.util.find_spec(module) is None:
+        return {"ok": False, "message": f"Chưa cài gói {module} (pip install {module.replace('_', '-')}).",
+                "latency_s": None}
+    llm = _build(provider, model, temperature)
+    if llm is None:
+        return {"ok": False, "message": "Không khởi tạo được client với cấu hình này.", "latency_s": None}
+    started = time.perf_counter()
+    pool = concurrent.futures.ThreadPoolExecutor(max_workers=1)
+    try:
+        msg = pool.submit(llm.invoke, [("human", "Trả lời đúng một từ: OK")]).result(timeout=timeout_s)
+    except concurrent.futures.TimeoutError:
+        return {"ok": False, "message": f"Quá {timeout_s:.0f} giây chưa có phản hồi.", "latency_s": None}
+    except Exception as e:  # noqa: BLE001
+        text = f"{type(e).__name__} {e}".lower()
+        if _quota_error(e):
+            reason = "Hết quota hoặc bị giới hạn tốc độ (429)."
+        elif any(k in text for k in ("401", "403", "api key", "api_key", "authentication", "permission", "unauthorized")):
+            reason = "Khóa API không hợp lệ hoặc không có quyền dùng model này."
+        elif any(k in text for k in ("404", "not found", "not_found", "does not exist", "unknown model")):
+            reason = f"Không tìm thấy model “{model}”."
+        elif any(k in text for k in ("connect", "timeout", "timed out", "network", "resolve")):
+            reason = "Không kết nối được tới máy chủ model."
+        else:
+            reason = f"Lỗi {type(e).__name__}."
+        detail = redact(str(e)).strip().splitlines()[0][:200] if str(e).strip() else ""
+        return {"ok": False, "message": reason + (f" Chi tiết: {detail}" if detail else ""), "latency_s": None}
+    finally:
+        pool.shutdown(wait=False, cancel_futures=True)
+    latency = round(time.perf_counter() - started, 2)
+    _exhausted.discard((provider, model))   # kết nối lại được thì bỏ đánh dấu hết quota trong phiên
+    content = msg.content if isinstance(getattr(msg, "content", None), str) else str(getattr(msg, "content", ""))
+    return {"ok": True, "message": f"Phản hồi: {redact(content).strip()[:60] or '(trống)'}", "latency_s": latency}
+
+
 def mode_label() -> str:
     labels = {a: agent_model_label(a) for a in AGENTS}
     if len(set(labels.values())) == 1:
@@ -124,30 +233,53 @@ def mode_label() -> str:
     return "LLM theo agent – " + "; ".join(f"{a}: {v}" for a, v in labels.items())
 
 
-def _usage_tokens(msg) -> int:
-    usage = getattr(msg, "usage_metadata", None) or {}
-    if usage:
-        return int(usage.get("total_tokens") or usage.get("input_tokens", 0) + usage.get("output_tokens", 0))
+def _usage_tokens(msg) -> int | None:
     meta = getattr(msg, "response_metadata", {}) or {}
-    tu = meta.get("token_usage") or meta.get("usage") or {}
-    return int(tu.get("total_tokens", 0) or tu.get("input_tokens", 0) + tu.get("output_tokens", 0))
+    for usage in (getattr(msg, "usage_metadata", None), meta.get("token_usage"), meta.get("usage")):
+        if not isinstance(usage, dict):
+            continue
+        total = usage.get("total_tokens")
+        if type(total) is int and total >= 0:
+            return total
+        incoming = usage.get("input_tokens", usage.get("prompt_tokens"))
+        outgoing = usage.get("output_tokens", usage.get("completion_tokens"))
+        if type(incoming) is int and type(outgoing) is int and min(incoming, outgoing) >= 0:
+            return incoming + outgoing
+    return None
+
+
+def _record_response(msg, model: str | None, prompt: str, response: str) -> None:
+    meta = getattr(msg, "response_metadata", {}) or {}
+    actual_model = meta.get("model_name") or meta.get("model") or model
+    cost = meta.get("cost_usd")
+    tracker.record(_usage_tokens(msg), prompt=prompt, response=response,
+                   model=actual_model if isinstance(actual_model, str) else model,
+                   cost_usd=cost if type(cost) in (int, float) and math.isfinite(cost) and cost >= 0 else None)
 
 
 def invoke_text(system: str, prompt: str, retries: int = 2) -> str | None:
     llm = get_llm()
     if llm is None:
         return None
+    model = agent_config()["model"] or None
     for attempt in range(retries + 1):
         try:
             msg = llm.invoke([("system", system + PLAIN_RULE), ("human", prompt)])
-            text = msg.content if isinstance(msg.content, str) else "".join(
-                p.get("text", "") if isinstance(p, dict) else str(p) for p in msg.content)
-            tracker.record(_usage_tokens(msg), prompt=f"[SYSTEM]\n{system}\n\n[USER]\n{prompt}", response=text)
-            return clean_text(text)
         except Exception as e:  # noqa: BLE001
+            tracker.record(None, model=model, api_error=error_category(e) == "infrastructure")
             if _mark_if_quota(e):
                 return None
-            log.warning("LLM lỗi (lần %d): %s", attempt + 1, e)
+            log.warning("LLM lỗi (lần %d): %s", attempt + 1, type(e).__name__)
+            continue
+        try:
+            text = msg.content if isinstance(msg.content, str) else "".join(
+                p.get("text") or "" if isinstance(p, dict) else str(p) for p in (msg.content or []))
+        except (AttributeError, TypeError):
+            _record_response(msg, model, f"[SYSTEM]\n{system}\n\n[USER]\n{prompt}", "")
+            log.warning("LLM trả nội dung sai định dạng (lần %d)", attempt + 1)
+            continue
+        _record_response(msg, model, f"[SYSTEM]\n{system}\n\n[USER]\n{prompt}", text)
+        return clean_text(redact(text))
     return None
 
 
@@ -182,19 +314,24 @@ def invoke_structured(system: str, prompt: str, schema, retries: int = 2):
     try:
         runnable = llm.with_structured_output(schema, include_raw=True)
     except Exception as e:  # noqa: BLE001
-        log.warning("Model không hỗ trợ structured output: %s", e)
+        log.warning("Model không hỗ trợ structured output: %s", type(e).__name__)
         return None
+    model = agent_config()["model"] or None
     for attempt in range(retries + 1):
         try:
             out = runnable.invoke([("system", system), ("human", prompt)])
-            raw = out.get("raw")
-            tracker.record(_usage_tokens(raw) if raw is not None else 0,
-                           prompt=f"[SYSTEM]\n{system}\n\n[USER]\n{prompt}",
-                           response=str(out.get("parsed")))
-            if out.get("parsed") is not None:
-                return out["parsed"]
         except Exception as e:  # noqa: BLE001
+            tracker.record(None, model=model, api_error=error_category(e) == "infrastructure")
             if _mark_if_quota(e):
                 return None
-            log.warning("Structured output lỗi (lần %d): %s", attempt + 1, e)
+            log.warning("Structured output lỗi (lần %d): %s", attempt + 1, type(e).__name__)
+            continue
+        if not isinstance(out, dict):
+            tracker.record(None, model=model)
+            log.warning("Structured output trả sai định dạng (lần %d)", attempt + 1)
+            continue
+        parsed = out.get("parsed")
+        _record_response(out.get("raw"), model, f"[SYSTEM]\n{system}\n\n[USER]\n{prompt}", str(parsed))
+        if parsed is not None:
+            return parsed
     return None

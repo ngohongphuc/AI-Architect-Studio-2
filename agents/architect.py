@@ -1,13 +1,14 @@
-"""Agent 2 – Kiến trúc sư: ý tưởng, chương trình công năng, xử lý phản hồi sửa lỗi."""
+"""Thiết kế công năng, lựa chọn và điều chỉnh chương trình phòng."""
 from __future__ import annotations
 
 import copy
 import math
 import re
+from collections import Counter
+from uuid import NAMESPACE_URL, uuid4, uuid5
 
 from agents.base import agent_node
-from llm import invoke_text
-from tools.rules import load_rules
+from tools.rules import load_rules, min_room
 
 GRADES = ["tiết kiệm", "trung bình", "khá", "cao cấp"]
 
@@ -51,7 +52,14 @@ def _balcony(W: float) -> dict:
     return _room("Ban công", "ban_cong", 1.2 * W, "mặt tiền", co_dinh=True, chieu_sau=1.2)
 
 
-def initial_program(brief: dict, keep: dict | None = None) -> dict:
+def proposed_floors(brief: dict) -> int:
+    req = brief["yeu_cau_phong"]
+    upper = math.ceil((req["phong_ngu"] + bool(req.get("phong_lam_viec"))) / 2)
+    return req.get("so_tang") or min(1 + upper + bool(req.get("phong_tho")),
+                                     load_rules()["so_tang_toi_da"]["gia_tri"])
+
+
+def initial_program(brief: dict, keep: dict | None = None, concept: dict | None = None) -> dict:
     """Lập chương trình công năng từ brief. `keep` giữ lại các quyết định đã sửa (sân sau, vật liệu)."""
     W = brief["lo_dat"]["rong"]
     req = brief["yeu_cau_phong"]
@@ -63,12 +71,9 @@ def initial_program(brief: dict, keep: dict | None = None) -> dict:
     notes = []
 
     needed_upper = math.ceil((n_bed + (1 if lam_viec else 0)) / 2) + (1 if tho else 0)
-    upper = needed_upper
-    if req.get("so_tang"):
-        upper = max(1, int(req["so_tang"]) - 1)
-        if upper < needed_upper:
-            notes.append(f"Khách yêu cầu {req['so_tang']} tầng: gộp phòng thờ / phòng ngủ để đủ công năng")
-    upper = min(upper, max_floors - 1)
+    upper = (concept["so_tang"] if concept else proposed_floors(brief)) - 1
+    if 0 < upper < needed_upper:
+        notes.append("Số tầng giới hạn vị trí dành cho các phòng yêu cầu.")
 
     # --- Phân bổ phòng cho các tầng trên: mỗi tầng 2 vị trí (trước, sau) ---
     bedrooms = [("Phòng ngủ master" if i == 0 else f"Phòng ngủ {i + 1}") for i in range(n_bed)]
@@ -77,7 +82,7 @@ def initial_program(brief: dict, keep: dict | None = None) -> dict:
     bed_floors = upper - 1 if tho and upper >= 2 else upper
     if tho and upper >= 2 and bed_floors * 2 >= n_bed + (1 if lam_viec else 0):
         slots[top] = ["tho", "san_phoi"]
-    elif tho:
+    elif tho and upper:
         slots[top][0] = "tho"
         bed_floors = upper
     queue = list(bedrooms)
@@ -86,7 +91,7 @@ def initial_program(brief: dict, keep: dict | None = None) -> dict:
             if slots[f][s] is None and queue:
                 slots[f][s] = queue.pop(0)
     ground_bed = queue.pop(0) if queue else None
-    if queue:
+    if queue and upper:
         notes.append(f"Không đủ tầng cho {len(queue)} phòng ngủ còn lại (giới hạn {max_floors} tầng)")
     extras = (["lam_viec"] if lam_viec else []) + ["sinh_hoat"]
     for f in range(upper):
@@ -123,7 +128,15 @@ def initial_program(brief: dict, keep: dict | None = None) -> dict:
         t1.append(_room(ground_bed, "ngu", 12, "sau"))
     else:
         t1.append(_room("Bếp + ăn", "bep", 20, "sau"))
+    if not upper:
+        t1.extend(_room(bedroom, "ngu", 12, "sau") for bedroom in queue)
+        if tho:
+            t1.append(_room("Phòng thờ", "tho", 12, "sau"))
+        if lam_viec:
+            t1.append(_room("Phòng làm việc", "lam_viec", 12, "trước"))
     program["tang_1"] = t1
+    if concept:
+        program.update(phong_cach=concept["phong_cach"], vat_lieu=dict(concept["vat_lieu"]))
 
     # --- Tầng trên ---
     names = {"tho": ("Phòng thờ", "tho", 12), "san_phoi": ("Sân phơi", "san_phoi", 10),
@@ -157,7 +170,8 @@ def initial_program(brief: dict, keep: dict | None = None) -> dict:
         for r in program[k]:
             if r["loai"] in ("thang", "gieng_troi"):
                 continue
-            d += r["chieu_sau"] if r.get("co_dinh") else r["dien_tich"] / ((W - 1.1) if r.get("nho") else W)
+            room_width = max(W - 1.1, W / 2) if r.get("nho") else W
+            d += r["chieu_sau"] if r.get("co_dinh") else r["dien_tich"] / room_width
         need = max(need, d)
     extra = Llot - (need * 1.3 + 4.8)
     if extra > 1.5:
@@ -203,11 +217,14 @@ def apply_feedback(program: dict, feedback: list[dict], brief: dict) -> tuple[di
     changes: list[str] = []
     codes = {f.get("ma") for f in feedback}
 
+    if "THUA_PHONG" in codes:
+        program = initial_program(brief, keep=program)
+        changes.append("Lập lại chương trình công năng theo số phòng trong brief")
     if "THIEU_PHONG" in codes:
         # thêm 1 tầng (nếu còn trong giới hạn) rồi lập lại chương trình để đủ phòng
         b2 = copy.deepcopy(brief)
         max_floors = load_rules()["so_tang_toi_da"]["gia_tri"]
-        b2["yeu_cau_phong"]["so_tang"] = min(program["so_tang"] + 1, max_floors)
+        b2["yeu_cau_phong"]["so_tang"] = brief["yeu_cau_phong"].get("so_tang") or min(program["so_tang"] + 1, max_floors)
         program = initial_program(b2, keep=program)
         changes.append(f"Lập lại chương trình công năng ({program['so_tang']} tầng) để đủ số phòng theo brief")
 
@@ -233,13 +250,20 @@ def apply_feedback(program: dict, feedback: list[dict], brief: dict) -> tuple[di
                 program["san_sau"] = round(sb_new, 2)
                 changes.append(f"Thêm sân sau {_n(program['san_sau'])} m để giảm mật độ xây dựng")
         elif ma == "SO_TANG":
-            if _drop_top_floor(program):
+            if not brief["yeu_cau_phong"].get("so_tang") and _drop_top_floor(program):
                 changes.append(f"Giảm còn {program['so_tang']} tầng (gộp phòng thờ xuống tầng dưới)")
         elif ma == "CHIEU_CAO_TANG":
+            limits = load_rules()["chieu_cao_tang"]
+            clear = limits["thong_thuy_min"] + limits["chieu_day_san"] + 0.1
             h = program["chieu_cao_tang"]
-            h["tang_1"] = min(max(h["tang_1"], 3.0), 3.9)
-            h["tang_khac"] = min(max(h["tang_khac"], 3.0), 3.6)
-            changes.append("Điều chỉnh chiều cao tầng về giới hạn cho phép")
+            new_heights = {key: min(max(value, limits[f"{key}_min"], clear), limits[f"{key}_max"])
+                           for key, value in h.items()}
+            if h != new_heights:
+                program["chieu_cao_tang"] = new_heights
+                changes.append("Điều chỉnh chiều cao tầng theo phép kiểm đang áp dụng")
+        elif ma == "CAU_THANG" and not program.get("doi_chieu_cau_thang"):
+            program["doi_chieu_cau_thang"] = True
+            changes.append("Tính lại bề rộng vế, số bậc và kích thước bậc theo phép kiểm cầu thang")
         elif ma == "PHONG_NHO":
             k = f"tang_{data['tang']}"
             for r in program.get(k, []):
@@ -303,7 +327,7 @@ def _save_cost(program: dict, data: dict, brief: dict) -> list[str]:
             program["vat_lieu"]["mai"] = "BTCT"
             changes.append("Bỏ mái ngói trang trí")
             continue
-        if _drop_top_floor(program):
+        if not brief["yeu_cau_phong"].get("so_tang") and _drop_top_floor(program):
             changes.append(f"Giảm còn {program['so_tang']} tầng để giảm diện tích sàn")
             continue
         program["san_sau"] = round(program.get("san_sau", 0) + 1.0, 2)
@@ -328,7 +352,7 @@ def program_to_rows(program: dict) -> list[dict]:
         for r in program[k]:
             if r["loai"] in ("thang", "gieng_troi"):
                 continue
-            rows.append({"tang": int(k.split("_")[1]), "ten": r["ten"], "loai": r["loai"],
+            rows.append({"id": r.get("id"), "tang": int(k.split("_")[1]), "ten": r["ten"], "loai": r["loai"],
                          "dien_tich": float(r["dien_tich"]), "vi_tri": r.get("vi_tri", "trước")})
     return rows
 
@@ -352,11 +376,13 @@ def rows_to_program(program: dict, rows: list[dict], W: float) -> tuple[dict, li
         if loai not in ROOM_TYPES:
             errors.append(f"Dòng {i} ({ten}): loại phòng không hợp lệ")
             continue
-        if dt <= 0 or tang < 1:
+        if not math.isfinite(dt) or dt <= 0 or tang < 1:
             errors.append(f"Dòng {i} ({ten}): diện tích và tầng phải > 0")
             continue
         vi_tri = r.get("vi_tri") if r.get("vi_tri") in POSITIONS else "trước"
         room = _room(ten or ROOM_TYPES[loai], loai, dt, vi_tri)
+        if r.get("id"):
+            room["id"] = r["id"]
         if loai in SMALL_TYPES:
             room["nho"] = True
         if loai == "ban_cong":
@@ -731,57 +757,15 @@ def _user_feedback(program: dict, text: str, brief: dict,
 
 
 # ---------------------------------------------------------------------------
-# Ý tưởng thiết kế
-# ---------------------------------------------------------------------------
-def concept_text(brief: dict, program: dict) -> str:
-    W, L = brief["lo_dat"]["rong"], brief["lo_dat"]["dai"]
-    style = program["phong_cach"]
-    vl = program["vat_lieu"]
-    base = (
-        f"Công trình nhà ở liền kề {program['so_tang']} tầng trên lô đất {W:g}×{L:g} m, mặt tiền hướng "
-        f"{brief['lo_dat']['huong']}, phong cách {style}. Mặt tiền tổ chức theo các lớp: tầng 1 "
-        f"{'gara và lối vào' if brief['yeu_cau_phong'].get('gara') else 'lối vào chính'}, các tầng trên có ban công "
-        f"lùi vào 1,2 m với lan can {vl['lan_can']} tạo chiều sâu và che nắng, hoàn thiện bằng {vl['mat_tien']}. "
-        f"Lõi giao thông gồm cầu thang chữ U và giếng trời đặt giữa nhà, thẳng hàng từ tầng 1 đến mái, vừa "
-        f"lấy sáng vừa tạo hiệu ứng ống khói thông gió cho các phòng giữa nhà. "
-        f"Vật liệu chủ đạo: sàn {vl['san']}, cửa {vl['cua']}, cửa phòng {vl['cua_phong']}; "
-        f"gói hoàn thiện mức '{program['cap_hoan_thien']}'."
-    )
-    prompt = (f"Viết lại đoạn ý tưởng thiết kế sau thành 1 đoạn văn chuyên nghiệp (120–180 từ) cho thuyết minh "
-              f"kiến trúc, giữ nguyên mọi con số, không thêm số liệu mới:\n\n{base}\n\nYêu cầu khách hàng: "
-              f"{', '.join(brief.get('yeu_cau_khac', [])) or 'không có'}.")
-    return invoke_text("Bạn là kiến trúc sư nhà phố Việt Nam.", prompt) or base
-
-
-# ---------------------------------------------------------------------------
 # Các phương án để chủ nhà lựa chọn
 # ---------------------------------------------------------------------------
-def _quick_metrics(brief: dict, program: dict) -> dict:
-    """Ước tính nhanh (không vẽ): diện tích, mật độ, chi phí – để so sánh phương án."""
-    from tools.cost_calc import compute_cost
-    from tools.layout_algorithm import build_area_table, compute_layout
-    from tools.rules import max_density
-
-    try:
-        layout = compute_layout(brief, program)
-        area = build_area_table(layout, brief)
-        cost = compute_cost(area, layout, program, brief["ngan_sach"])
-    except Exception as e:  # noqa: BLE001
-        return {"loi": str(e)}
-    dmax = max_density(area["dien_tich_dat"])
-    return {"so_tang": area["so_tang"], "tong_dien_tich_san": area["tong_dien_tich_san"],
-            "mat_do": area["mat_do_xay_dung"], "mat_do_toi_da": dmax, "dat_mat_do": area["mat_do_xay_dung"] <= dmax + 1e-4,
-            "kha_thi": layout["feasible"], "chi_phi": cost["tong_chi_phi"], "vuot_pct": cost["vuot_pct"],
-            "cap_hoan_thien": program["cap_hoan_thien"], "san_sau": program.get("san_sau", 0)}
-
-
 def make_options(brief: dict, base: dict) -> list[dict]:
     """3 phương án: A cân bằng, B tiết kiệm, C thoáng & cao cấp."""
-    W = brief["lo_dat"]["rong"]
     a = copy.deepcopy(base)
     b = copy.deepcopy(base)
     gi = GRADES.index(b["cap_hoan_thien"])
     b["cap_hoan_thien"] = GRADES[max(0, gi - 1)]
+    b["vat_lieu"].update(san="gạch ceramic", cua_phong="gỗ công nghiệp")
     for k in _floors(b):
         for r in b[k]:
             if not r.get("co_dinh") and not r.get("nho") and r["loai"] not in ("san_phoi",):
@@ -804,9 +788,54 @@ def make_options(brief: dict, base: dict) -> list[dict]:
     out = []
     for oid, name, desc, prog in specs:
         prog["phuong_an"] = oid
-        out.append({"id": oid, "ten": name, "mo_ta": desc, "program": prog, "chi_so": _quick_metrics(brief, prog)})
-    _ = W
+        out.append({"id": oid, "ten": name, "mo_ta": desc, "program": prog})
     return out
+
+
+def identify_program(program: dict, brief: dict, run_id: str, version: int | None = None) -> dict:
+    """Giữ ID phòng đã có và định danh các phòng theo vai trò khi lập lại phương án."""
+    program = copy.deepcopy(program)
+    program.setdefault("phuong_an", "A")
+    program["option_version"] = version if version is not None else program.get("option_version", 0) + 1
+    program["revision_id"] = uuid4().hex
+    program["floor_ids"] = {key: key for key in _floors(program)}
+    used = set()
+    occurrences = Counter()
+    preferred_neighbors = {
+        "gara": {"khach"}, "khach": {"gara", "bep"}, "bep": {"khach", "san_phoi"},
+        "ngu": {"wc"}, "lam_viec": {"sinh_hoat", "ban_cong"}, "tho": {"san_phoi", "ban_cong"},
+    }
+    for key in _floors(program):
+        for room in program[key]:
+            role = (room["loai"], room["ten"].strip().casefold())
+            occurrences[role] += 1
+            old_id = room.get("id")
+            stable = uuid5(NAMESPACE_URL, f"{run_id}/{role}/{occurrences[role]}").hex
+            room["id"] = old_id if old_id and old_id not in used else stable
+            if room["id"] in used:
+                room["id"] = uuid5(NAMESPACE_URL, f"{stable}/{key}").hex
+            used.add(room["id"])
+            room["toi_thieu"] = dict(min_room(room["loai"], brief["yeu_cau_phong"].get("gara")) or {})
+            room["ke_khong_gian"] = ["giếng trời hoặc mặt thoáng"] if room["loai"] in (
+                "ngu", "khach", "bep", "lam_viec", "sinh_hoat", "tho") else []
+        for room in program[key]:
+            types = preferred_neighbors.get(room["loai"], ())
+            room["ke_phong_uu_tien"] = [other["id"] for other in program[key] if other["loai"] in types]
+    return program
+
+
+def version_option(program: dict, brief: dict, run_id: str, versions: dict) -> dict:
+    oid = program.get("phuong_an", "A")
+    versions[oid] = max(versions.get(oid, 0), program.get("option_version", 0)) + 1
+    return identify_program(program, brief, run_id, versions[oid])
+
+
+def candidate_with_program(options: list[dict], program: dict) -> dict:
+    oid = program["phuong_an"]
+    existing = next((opt for opt in options if opt["id"] == oid), {})
+    return {"id": oid, "ten": existing.get("ten", f"Phương án {oid}"),
+            "mo_ta": existing.get("mo_ta", "Phương án đã điều chỉnh theo phản hồi."),
+            "program": program}
 
 
 @agent_node("architect")
@@ -814,33 +843,58 @@ def run(state: dict) -> dict:
     brief = state["brief"]
     feedback = state.get("feedback") or []
     program = state.get("program")
-    options: list[dict] = []
+    options = [option for option in state.get("options") or [] if "option_version" in option["program"]]
+    versions = dict(state.get("option_versions") or {})
+    new_selection = not program
     reply = None
-    if not program:
-        options = make_options(brief, initial_program(brief))
-        program = copy.deepcopy(options[0]["program"])   # tự động chọn A; chủ nhà có thể chọn lại khi duyệt
+    if new_selection:
+        options = make_options(brief, initial_program(brief, concept=state.get("concept_plan")))
+        options = [{**opt, "program": version_option(opt["program"], brief, state["run_id"], versions)}
+                   for opt in options]
+        program = options[0]["program"]
+        new_brief = None
         changes = []
     else:
+        oid = program.get("phuong_an", "A")
         program, changes = apply_feedback(program, feedback, brief)
-    new_brief = program.pop("_brief", None)
-    reply = program.pop("_reply", None)
-    if new_brief is not None:
-        brief = new_brief
-    concept = concept_text(brief, program)
+        program["phuong_an"] = oid
+        new_brief = program.pop("_brief", None)
+        reply = program.pop("_reply", None)
+        brief_changed = new_brief is not None and new_brief != brief
+        if brief_changed:
+            brief = new_brief
+        program = version_option(program, brief, state["run_id"], versions)
+        candidate = candidate_with_program(options, program)
+        if brief_changed:
+            options = [candidate]
+        else:
+            options = [candidate if opt["id"] == oid else opt for opt in options]
+            if not any(opt["id"] == oid for opt in options):
+                options.append(candidate)
+    concept = dict(state.get("concept_plan") or {})
+    concept.update(so_tang=program["so_tang"], phong_cach=program["phong_cach"], vat_lieu=program["vat_lieu"])
     n_rooms = sum(1 for k in _floors(program) for r in program[k] if not r.get("co_dinh") or r["loai"] == "ban_cong")
     if changes:
         summary = f"Sửa phương án (v{(state.get('versions') or {}).get('architect', 0) + 1}): " + "; ".join(changes)
     elif reply:
         summary = f"Trả lời chủ nhà: {reply['kien_truc_su']}"
+    elif new_selection:
+        summary = f"Lập {len(options)} phương án công năng để đối chiếu hình học và dự toán"
     else:
-        summary = (f"{len(options)} phương án (A/B/C); chọn mặc định A: {program['so_tang']} tầng, {n_rooms} phòng, "
-                   f"hoàn thiện '{program['cap_hoan_thien']}'")
-    extra = {"brief": brief} if new_brief is not None else {}
+        summary = f"Cập nhật công năng {program['so_tang']} tầng, {n_rooms} phòng theo định hướng mới"
+    extra = {}
+    if new_brief is not None:
+        from agents.requirements_analyst import needs_confirmation
+
+        extra.update(brief=brief, brief_assessment={"questions": [], "conflicts": [],
+                                                   "needs_confirmation": needs_confirmation(brief)})
     if reply:
         extra["trao_doi"] = [reply]
-    return {**extra, "program": program, "concept": concept, "feedback": [], "options": options,
-            "_summary": summary, "_to": "drafter",
-            "route": "drafter",
+    return {**extra, "program": program, "revision_id": program["revision_id"], "concept_plan": concept, "feedback": [],
+            "options": options, "option_versions": versions,
+            "selected_by_user": (not new_selection and (bool(state.get("selected_by_user")) or bool(reply))),
+            "_summary": summary, "_to": "cost_estimator",
+            "route": "compare_options",
             "_output": {"so_tang": program["so_tang"], "san_sau": program["san_sau"],
                         "cap_hoan_thien": program["cap_hoan_thien"], "thay_doi": changes,
                         "phuong_an": [{k: v for k, v in o.items() if k != "program"} for o in options],

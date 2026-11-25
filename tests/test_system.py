@@ -23,7 +23,7 @@ CASES = json.loads((Path(__file__).parent / "test_requests.json").read_text(enco
 # ---------------- Agent 1: phân tích brief ----------------
 def test_parse_sample():
     b = parse_request(SAMPLE)
-    assert b["lo_dat"] == {"rong": 5.0, "dai": 20.0, "huong": "Đông Nam", "tinh": "Hà Nội"}
+    assert b["lo_dat"] == {"rong": 5.0, "dai": 20.0, "huong": "Đông Nam", "tinh": "Hà Nội", "ma_lo_dat": None}
     assert b["gia_dinh"]["nam_sinh_chu_nha"] == 1990
     assert b["yeu_cau_phong"]["phong_ngu"] == 3 and b["yeu_cau_phong"]["phong_tho"] == 1
     assert b["yeu_cau_phong"]["gara"] == "xe máy"
@@ -102,14 +102,12 @@ def _state(request, program=None):
             "iteration": 0}
 
 
-def test_density_feedback_loop():
+def test_density_reference_is_advisory():
     st = _state(SAMPLE)
     review = review_design(st)
-    assert not review["dat"] and review["loi"][0]["ma"] == "MAT_DO"
-    program, changes = apply_feedback(st["program"], review["loi"], st["brief"])
-    assert program["san_sau"] == 2.0 and changes
-    st2 = _state(SAMPLE, program)
-    assert review_design(st2)["dat"]
+    assert not review["dat"] and review["dat_ky_thuat"]
+    assert not any(issue["ma"] == "MAT_DO" for issue in review["loi"])
+    assert any(issue["ma"] == "MAT_DO" for issue in review["canh_bao"])
 
 
 def test_budget_feedback_downgrades_grade():
@@ -127,17 +125,20 @@ def test_wc_above_altar_detected():
     tho["loai"] = "tho"
     wc3 = next(r for r in layout["floors"]["3"]["rooms"] if r["loai"] == "wc")
     wc3["y"] = tho["y"] + 0.5
-    codes = {i["ma"] for i in review_design(st)["loi"]}
-    assert "WC_TREN_THO" in codes
+    from agents.fengshui_advisor import fengshui_checks
+
+    suggestions = fengshui_checks(st)[2]
+    assert any(i["ma"] == "WC_TREN_THO" for i in suggestions)
+    assert all(i["ma"] != "WC_TREN_THO" for i in review_design(st)["loi"])
     # Kiến trúc sư xử lý: dời WC tầng 3 ra phía sau lõi thang
-    fb = [i for i in review_design(st)["loi"] if i["ma"] == "WC_TREN_THO"]
+    fb = [i for i in suggestions if i["ma"] == "WC_TREN_THO"]
     program, _ = apply_feedback(st["program"], fb, st["brief"])
     assert next(r for r in program["tang_3"] if r["loai"] == "wc")["vi_tri"] == "sau"
 
 
 # ---------------- Agent 5: chi phí + công thức Excel ----------------
 def test_cost_excel_formulas_match_python(tmp_path):
-    from pycel import ExcelCompiler
+    from tools.pycel_compat import ExcelCompiler
 
     from tools.xlsx_writer import write_cost_xlsx
 
@@ -162,8 +163,10 @@ def test_end_to_end_three_products(full_run):
     files = full_run["final_files"]
     for key in ("ban_ve_pdf", "ban_ve_dxf_zip", "thuyet_minh_docx", "du_toan_xlsx"):
         assert Path(files[key]).exists() and Path(files[key]).stat().st_size > 1000
-    assert full_run["review"]["dat"]
-    assert full_run["iteration"] == 2  # 1 vòng quy chuẩn + 1 vòng ngân sách
+    assert full_run["final_review"]["dat"]
+    assert full_run["outcome"] == "done"
+    assert full_run["review"]["chua_du_can_cu"]
+    assert 0 < full_run["iteration"] <= 3
     assert full_run["cost"]["vuot_pct"] <= 0.10
 
 
@@ -207,13 +210,15 @@ def test_natural_language_rules():
 
 
 def test_three_design_options():
-    from agents.architect import make_options
+    from agents.architect import identify_program, make_options
+    from agents.cost_estimator import evaluate_option
 
     brief = parse_request(SAMPLE)
-    opts = make_options(brief, initial_program(brief))
+    opts = [evaluate_option(brief, opt | {"program": identify_program(opt["program"], brief, "test")})
+            for opt in make_options(brief, initial_program(brief))]
     assert [o["id"] for o in opts] == ["A", "B", "C"]
     assert opts[1]["chi_so"]["chi_phi"] < opts[0]["chi_so"]["chi_phi"]      # B rẻ hơn A
-    assert opts[2]["chi_so"]["dat_mat_do"]                                   # C có sân sau -> đạt mật độ
+    assert opts[2]["chi_so"]["mat_do"] < opts[0]["chi_so"]["mat_do"]         # C chừa sân sau
 
 
 def test_user_direct_edit():

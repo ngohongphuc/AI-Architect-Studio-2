@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Xem bản vẽ kỹ thuật</title>
+  <link rel="stylesheet" href="./viewer.css">
+  <script type="module" src="./viewer.js"></script>
+</head>
+<body>
+  <main id="viewer">
+    <div class="toolbar" role="group" aria-label="Điều khiển bản vẽ">
+      <button type="button" id="fit">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9V4h5m6 0h5v5m0 6v5h-5m-6 0H4v-5M8 8h8v8H8z"/></svg>
+        Vừa khung
+      </button>
+      <button type="button" id="minus" title="Thu nhỏ" aria-label="Thu nhỏ">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M7.7 10.5h5.6m2 4.8L21 21"/></svg>
+      </button>
+      <button type="button" id="plus" title="Phóng to" aria-label="Phóng to">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M7.7 10.5h5.6m-2.8-2.8v5.6m4.7 2L21 21"/></svg>
+      </button>
+      <output id="zoom" aria-live="polite">100%</output>
+      <button type="button" id="expand">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9V4h5m6 0h5v5m0 6v5h-5m-6 0H4v-5"/></svg>
+        <span id="expand-label">Mở rộng</span>
+      </button>
+    </div>
+    <div id="viewport" tabindex="0" role="region" aria-label="Bản vẽ kỹ thuật. Dùng dấu cộng, dấu trừ hoặc Home để đổi mức phóng.">
+      <p id="message" role="status">Đang tải tờ bản vẽ…</p>
+      <div id="sheet" hidden><img id="image" alt="" draggable="false"></div>
+    </div>
+    <p id="caption"></p>
+  </main>
+</body>
+</html>

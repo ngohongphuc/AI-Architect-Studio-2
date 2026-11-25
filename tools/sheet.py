@@ -199,6 +199,8 @@ def render_dxf(sheet: Sheet, path) -> None:
     from ezdxf.enums import TextEntityAlignment
 
     doc = ezdxf.new("R2010", setup=True)
+    if sheet.info.get("ma_phuong_an"):
+        doc.ezdxf_metadata()["AI_ARCHITECT_OPTION"] = sheet.info["ma_phuong_an"]
     doc.units = ezdxf.units.MM
     doc.header["$LTSCALE"] = sheet.scale * 2
     if "VN" not in doc.styles:

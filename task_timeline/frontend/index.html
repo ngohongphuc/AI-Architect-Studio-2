@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Timeline công việc</title>
+  <link rel="stylesheet" href="./timeline.css">
+  <script type="module" src="./timeline.js"></script>
+</head>
+<body>
+  <main id="timeline" aria-label="Timeline công việc">
+    <div class="toolbar">
+      <div class="zoom">
+        <button id="zoom-in" type="button">Phóng to</button>
+        <button id="zoom-out" type="button" disabled>Thu nhỏ</button>
+        <button id="reset" type="button" disabled>Xem toàn bộ lượt chạy</button>
+      </div>
+      <span id="range-label">Đang tải mốc thời gian</span>
+    </div>
+    <label id="pan-box" hidden>Di chuyển khoảng xem
+      <input id="pan" type="range" min="0" max="1000" value="0">
+    </label>
+    <div id="plot-scroll" tabindex="0" role="region" aria-label="Trục thời gian và các hàng agent">
+      <div id="plot"></div>
+    </div>
+    <div id="legend" class="legend" aria-label="Chú giải Timeline"></div>
+    <noscript>Cần JavaScript để hiển thị Timeline. Các lần thực hiện vẫn có trong tab Công việc.</noscript>
+  </main>
+</body>
+</html>

@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Văn phòng 3D · AI Architect Studio</title>
+  <link rel="stylesheet" href="./office.css">
+  <script type="importmap">
+    {"imports":{"three":"./vendor/three.module.min.js"}}
+  </script>
+  <script type="module" src="./office.js"></script>
+</head>
+<body>
+  <main id="office" class="office">
+    <header class="office-bar">
+      <div class="workspace-tabs" role="tablist" aria-label="Chế độ xem Studio">
+        <button id="tab-scene" type="button" role="tab" aria-selected="true" aria-controls="scene-view">Văn phòng 3D</button>
+        <button id="tab-flow" type="button" role="tab" aria-selected="false" aria-controls="flow-view" tabindex="-1">Luồng công việc</button>
+      </div>
+      <div id="frame-run" class="run-details">
+        <span id="run-status" class="status" data-status="waiting" role="status">Đang tải dữ liệu</span>
+        <span id="run-rounds" class="rounds" hidden></span>
+      </div>
+      <div class="mode-controls">
+        <div id="scene-mode" class="segmented" role="group" aria-label="Nguồn sự kiện">
+          <button id="live-mode" type="button" aria-pressed="true">Dữ liệu thật</button>
+          <button id="demo-mode" type="button" aria-pressed="false">Mô phỏng</button>
+        </div>
+        <button id="demo-play" class="control" type="button" hidden>Tạm dừng mô phỏng</button>
+        <button id="panel-toggle" class="control" type="button" aria-expanded="true" aria-controls="inspector">Thu gọn chi tiết</button>
+      </div>
+    </header>
+
+    <section id="quality" class="quality" aria-label="Kỹ thuật và quy chuẩn" hidden>
+      <p id="quality-status" class="quality-status"></p>
+      <p id="quality-summary" class="quality-status" hidden>Đã tạo phương án sơ bộ · Số mục cần xác minh chưa xác định</p>
+      <details id="quality-details" hidden>
+        <summary><strong id="quality-title"></strong><span id="quality-action" class="text-action">Xem chi tiết</span></summary>
+        <div id="quality-findings" class="quality-findings"></div>
+      </details>
+    </section>
+
+    <div class="office-body">
+      <div class="workspace">
+      <section id="scene-view" class="scene-area" role="tabpanel" aria-labelledby="tab-scene">
+        <div class="scene-bar">
+          <p id="view-label" class="view-label">Toàn cảnh</p>
+          <div class="view-controls" role="group" aria-label="Điều khiển góc nhìn">
+            <button id="zoom-out" class="control square" type="button" aria-label="Thu nhỏ" title="Thu nhỏ" disabled>−</button>
+            <button id="zoom-in" class="control square" type="button" aria-label="Phóng to" title="Phóng to" disabled>+</button>
+            <button id="reset" class="control" type="button" disabled>Đặt lại camera</button>
+            <button id="enlarge" class="control" type="button" aria-pressed="false" aria-controls="viewport" disabled>Mở rộng cảnh</button>
+            <button id="idle-activity" class="control" type="button" aria-pressed="true">Hoạt động khi rảnh</button>
+            <button id="motion" class="control" type="button" aria-pressed="false">Giảm chuyển động</button>
+            <button id="list-view" class="control" type="button" aria-pressed="false">Danh sách</button>
+          </div>
+        </div>
+        <div id="viewport" class="viewport">
+          <p id="scene-message" class="scene-message" role="status">Đang tải mô hình 3D…</p>
+          <div id="canvas-slot" class="canvas-slot" tabindex="0" hidden
+               aria-label="Văn phòng 3D. Dùng các phím mũi tên để xoay, cộng hoặc trừ để thu phóng, Home để đặt lại.">
+          </div>
+          <div id="desk-labels" class="desk-labels" hidden></div>
+          <div id="scene-deliveries" class="scene-deliveries" role="status" aria-live="polite" hidden></div>
+          <div id="agent-list" class="agent-list" aria-label="Danh sách agent" hidden></div>
+          <div id="stage-caption" class="stage-caption" hidden>
+            <button id="project-model" type="button" class="project-model">Mô hình minh họa</button>
+            <span class="scene-hint">Kéo để xoay · Cuộn để thu phóng</span>
+          </div>
+        </div>
+        <nav id="room-views" class="rooms" aria-label="Góc nhìn theo khu làm việc"></nav>
+      </section>
+      <section id="flow-view" class="workspace-panel" role="tabpanel" aria-labelledby="tab-flow" hidden></section>
+      </div>
+      <aside id="inspector" class="inspector" aria-label="Chi tiết khu làm việc"></aside>
+    </div>
+
+    <details id="handoffs" class="handoffs">
+      <summary id="transfer" class="transfer">
+      <div class="packet-symbol" aria-hidden="true"></div>
+      <div class="transfer-body"><p class="overline">Nhật ký bàn giao</p>
+        <p id="transfer-route" class="transfer-route"></p>
+        <p id="transfer-summary" class="transfer-summary">Đang tải sự kiện…</p></div>
+      <time id="transfer-time" hidden></time>
+      <span id="handoff-action" class="text-action">Mở nhật ký</span>
+      </summary>
+      <div class="handoff-body">
+        <label for="handoff-filter">Loại sự kiện</label>
+        <select id="handoff-filter">
+          <option value="all">Tất cả</option>
+          <option value="normal">Bàn giao</option>
+          <option value="feedback">Trả sửa</option>
+          <option value="pending">Chờ duyệt</option>
+        </select>
+        <ol id="handoff-rows" class="handoff-rows"></ol>
+      </div>
+    </details>
+    <noscript>Trình duyệt cần bật JavaScript để hiển thị sa bàn và danh sách agent.</noscript>
+  </main>
+</body>
+</html>

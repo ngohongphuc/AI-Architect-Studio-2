@@ -1,204 +1,178 @@
-"""Hệ thống thiết kế "Modern" cho giao diện Streamlit.
-
-Design tokens
--------------
-- Màu: nền #F6F7FB, bề mặt #FFFFFF, viền #E4E7EC, chữ #101828 / phụ #475467 / mờ #667085,
-  nhấn Indigo #4F46E5. Mỗi tông trạng thái có cặp (chữ, nền) đạt tương phản ≥ 4.5:1 (WCAG AA).
-- Chữ: Inter. Eyebrow 12px/600 viết hoa · H1 32px/800 · H2 24px/700 · H3 18px/650 · body 15px · caption 13px.
-- Bo góc: 10px (nút, ô nhập) · 12px (thẻ nhỏ) · 16px (thẻ lớn) · 999px (pill).
-- Khoảng cách: thang 4px – 4 · 8 · 12 · 16 · 24 · 32 · 48.
-- Đổ bóng: xs (viền tách nền) và sm (thẻ nổi).
-"""
+"""Thành phần và phong cách dùng chung của AI Architect Studio."""
 from __future__ import annotations
 
 import html
+from base64 import b64encode
+from functools import lru_cache
+from pathlib import Path
 
 import streamlit as st
 
-# (chữ, nền, viền) cho từng tông
 TONES = {
-    "neutral": ("#344054", "#F2F4F7", "#E4E7EC"),
-    "info": ("#175CD3", "#EFF8FF", "#B2DDFF"),
-    "brand": ("#4338CA", "#EEF2FF", "#C7D2FE"),
-    "success": ("#067647", "#ECFDF3", "#ABEFC6"),
-    "warning": ("#B54708", "#FFFAEB", "#FEDF89"),
-    "danger": ("#B42318", "#FEF3F2", "#FECDCA"),
+    "neutral": ("#45565E", "#F0EFEB", "#E3E0D8"),
+    "info": ("#185B76", "#E2EFF4", "#D6E7EF"),
+    "brand": ("#08656D", "#DFEFEE", "#CFE6E5"),
+    "success": ("#235F35", "#E5F1E3", "#D6E8D6"),
+    "warning": ("#8B460C", "#FCEED9", "#F1DEC0"),
+    "danger": ("#9B302B", "#FAEAE6", "#EFCFC9"),
 }
 
-AGENT_STATUS = {  # trạng thái agent -> (nhãn, tông)
+AGENT_STATUS = {
+    "skipped": ("Đã tắt", "neutral"),  # trạng thái agent -> (nhãn, tông)
     "waiting": ("Chờ", "neutral"), "running": ("Đang chạy", "info"), "revising": ("Đang sửa", "warning"),
     "done": ("Hoàn thành", "success"), "error": ("Lỗi", "danger"), "paused": ("Tạm dừng", "neutral"),
 }
-RUN_STATUS_TONE = {  # trạng thái lượt chạy -> (nhãn, tông)
-    "running": ("Đang chạy", "info"), "paused": ("Tạm dừng", "neutral"), "awaiting_approval": ("Chờ duyệt", "warning"),
+RUN_STATUS_TONE = {
+    "not_passed": ("Chưa đạt", "danger"), "needs_input": ("Cần bổ sung yêu cầu", "warning"),
+    "running": ("Đang chạy", "warning"), "paused": ("Tạm dừng", "neutral"), "awaiting_approval": ("Chờ duyệt", "info"),
     "done": ("Hoàn thành", "success"), "stopped": ("Đã dừng", "neutral"), "error": ("Lỗi", "danger"),
     "idle": ("Chưa chạy", "neutral"),
 }
-AGENT_ICON = {"project_manager": "badge", "architect": "architecture", "drafter": "draw",
-              "reviewer": "fact_check", "cost_estimator": "payments", "user": "person"}
 
 CSS = """
 <style>
-:root{
-  --bg:#F6F7FB; --surface:#FFFFFF; --subtle:#F9FAFB; --border:#E4E7EC; --border-strong:#D0D5DD;
-  --text:#101828; --text-2:#475467; --text-3:#667085;
-  --brand:#4F46E5; --brand-600:#4338CA; --brand-50:#EEF2FF;
-  --r-sm:10px; --r-md:12px; --r-lg:16px;
-  --shadow-xs:0 1px 2px rgba(16,24,40,.05);
-  --shadow-sm:0 1px 3px rgba(16,24,40,.08),0 1px 2px rgba(16,24,40,.04);
+:root {
+  --aa-bg: #F6F5F1; --aa-paper: #FFFEFC; --aa-text: #112C39; --aa-muted: #4D6169;
+  --aa-line: #DEDFDA; --aa-teal: #087B81; --aa-teal-dark: #075E65; --aa-soft: #DDEEEB;
+  --aa-wood: #A25D28; --aa-radius: 12px; --aa-shadow: 0 1px 3px #2030360d;
 }
-/* ---------- Bố cục & khoảng trắng ---------- */
-[data-testid="stMainBlockContainer"], .block-container{
-  max-width:1280px; padding-top:2.25rem !important; padding-bottom:4rem !important;
-  padding-left:2.5rem !important; padding-right:2.5rem !important;
+[data-testid="stMainBlockContainer"] {
+  max-width: 1680px; padding: 3.15rem clamp(1rem, 2vw, 2rem) 2.25rem;
 }
-[data-testid="stVerticalBlock"]{ gap:1rem; }
-[data-testid="stHeader"]{ background:transparent; }
-hr{ margin:2rem 0 !important; border-color:var(--border) !important; }
-
-/* ---------- Typography ---------- */
-html, body, [class*="st-"]{ -webkit-font-smoothing:antialiased; }
-h1,h2,h3,h4{ letter-spacing:-0.02em; color:var(--text); }
-h1{ line-height:1.15 !important; }
-p, li{ line-height:1.6; }
-[data-testid="stCaptionContainer"], .stCaption{ color:var(--text-3) !important; }
-code{ border-radius:6px; }
-
-/* ---------- Thẻ có viền (st.container(border=True)) ---------- */
-[data-testid="stVerticalBlockBorderWrapper"]:has(> div > [data-testid="stVerticalBlock"]){
-  background:var(--surface); box-shadow:var(--shadow-xs);
+/* Thanh công cụ Streamlit cao 3.75rem và đặt ngoài luồng cuộn. */
+[data-testid="stMainBlockContainer"]:has(.st-key-page_heading) { padding-block-start: 3.75rem; }
+[data-testid="stHeader"] { background: var(--aa-bg); }
+[data-testid="stSidebarContent"] { border-right: 1px solid var(--aa-line); position: relative; }
+[data-testid="stSidebarUserContent"] { padding: .4rem .75rem 1rem; }
+[data-testid="stSidebarCollapseButton"], [data-testid="stSidebarCollapseButton"] button {
+  opacity: 1; visibility: visible;
 }
-div[data-testid="stLayoutWrapper"] > div[data-testid="stVerticalBlock"][class*="border"]{
-  background:var(--surface); box-shadow:var(--shadow-xs);
+[data-testid="stSidebarUserContent"] [data-testid="stVerticalBlock"] { gap: .28rem; }
+.aa-wordmark { display: flex; align-items: center; gap: .62rem; padding: 0 .35rem .95rem;
+  margin: 0 .2rem .54rem; border-bottom: 1px solid var(--aa-line); font-size: 1.16rem; line-height: 1.15;
+  font-weight: 780; letter-spacing: -.032em; color: var(--aa-text); }
+.aa-mark { width: 4.05rem; height: 3.55rem; flex: none; color: var(--aa-wood); }
+.st-key-sidebar_art { position: absolute; inset: auto 0 0; pointer-events: none; }
+.aa-house-art { display: block; width: 100%; height: auto; }
+.st-key-sidebar_art .aa-house-art { max-height: min(38dvh, 340px); object-fit: cover; object-position: center 69%; }
+[data-testid="stSidebar"] [data-testid="stPageLink-NavLink"] { padding: .62rem .78rem; min-height: 2.78rem;
+  border-radius: 8px; font-weight: 620; color: var(--aa-text); }
+[data-testid="stSidebar"] [data-testid="stPageLink-NavLink"] p { font-weight: inherit; }
+[data-testid="stSidebar"] [data-testid="stPageLink-NavLink"]:hover { background: #EFEEE8; }
+[data-testid="stSidebar"] .st-key-nav_active a[data-testid="stPageLink-NavLink"] {
+  background: var(--aa-soft); color: var(--aa-teal-dark); font-weight: 700;
 }
-
-/* ---------- Metric -> thẻ số liệu ---------- */
-[data-testid="stMetric"]{
-  background:var(--surface); border:1px solid var(--border); border-radius:var(--r-md);
-  padding:16px 18px; box-shadow:var(--shadow-xs);
+[data-testid="stSidebar"] .st-key-nav_active a[data-testid="stPageLink-NavLink"]:hover { background: #D3E9E5; }
+[data-testid="stMain"] h1, [data-testid="stMain"] h2, [data-testid="stMain"] h3 { color: var(--aa-text); }
+.aa-heading-line { display: flex; flex-wrap: wrap; align-items: center; gap: .35rem .8rem; }
+.aa-title { margin: 0; padding: 0; font-size: clamp(1.85rem, 2.7vw, 2.55rem); line-height: 1.12;
+  font-weight: 800; letter-spacing: -.04em; }
+.aa-heading-project { min-width: 0; overflow-wrap: anywhere; font-size: .91rem; line-height: 1.45;
+  color: var(--aa-muted); font-weight: 640; }
+.aa-heading-project::before {
+  content: ""; display: inline-block; width: .35rem; height: .35rem; margin-inline-end: .45rem;
+  vertical-align: .12em; border-radius: 50%; background: var(--aa-wood);
 }
-[data-testid="stMetricLabel"] p{ font-size:.75rem !important; font-weight:600 !important;
-  text-transform:uppercase; letter-spacing:.06em; color:var(--text-3) !important; }
-[data-testid="stMetricValue"]{ font-size:1.5rem !important; font-weight:700 !important; color:var(--text) !important;
-  letter-spacing:-0.02em; }
-
-/* ---------- Nút ---------- */
-.stButton > button, .stDownloadButton > button, [data-testid="stFormSubmitButton"] > button{
-  font-weight:600; min-height:2.5rem; transition:all .15s ease; box-shadow:var(--shadow-xs);
+.aa-sub { font-size: .96rem; color: var(--aa-muted); margin: .25rem 0 0; line-height: 1.55; }
+.st-key-page_heading [role="radiogroup"] { justify-content: flex-end; }
+.aa-section h2 { margin: 0; padding: 0; font-size: 1.3rem; line-height: 1.22; font-weight: 750; letter-spacing: -.022em; }
+.aa-section p { margin: .25rem 0 0; color: var(--aa-muted); font-size: .87rem; }
+.aa-eyebrow { font-size: .83rem; font-weight: 680; color: var(--aa-muted); margin-bottom: .25rem; }
+[data-testid="stVerticalBlockBorderWrapper"] { background: var(--aa-paper); border-radius: var(--aa-radius);
+  box-shadow: var(--aa-shadow); }
+.st-key-project_brief, .st-key-project_defaults { background: var(--aa-paper); }
+.st-key-project_defaults { border-top: 2px solid var(--aa-wood); }
+.st-key-project_resume, .st-key-project_empty { background: var(--aa-paper); }
+.aa-resume-name { font-size: 1.4rem; font-weight: 750; overflow-wrap: anywhere; }
+.aa-project-meta { display: flex; flex-wrap: wrap; align-items: center; gap: .6rem;
+  color: var(--aa-muted); font-size: .85rem; }
+.aa-studio-run { display: flex; flex-wrap: wrap; align-items: center; column-gap: 1rem; row-gap: .4rem;
+  font-size: .84rem; color: var(--aa-muted); }
+.aa-studio-run b { color: var(--aa-text); margin-inline-start: .25rem; }
+.aa-brief-assumptions { display: grid; gap: .25rem; margin: 0; padding-inline-start: 1.15rem;
+  color: var(--aa-muted); font-size: .86rem; }
+.st-key-workflow_settings, .st-key-model_settings, .st-key-reference_settings, .st-key-result_downloads {
+  background: var(--aa-paper);
 }
-.stButton > button[kind="primary"], [data-testid="stFormSubmitButton"] > button[kind="primaryFormSubmit"]{
-  box-shadow:0 1px 2px rgba(79,70,229,.25), 0 0 0 1px rgba(79,70,229,.1);
+.st-key-result_downloads [data-testid="stVerticalBlock"] { gap: .65rem; }
+.st-key-result_downloads [data-stale="true"] [data-testid="stDownloadButton"] button {
+  pointer-events: none; opacity: .55;
 }
-.stButton > button:hover{ transform:translateY(-1px); }
+[data-testid="stTable"] th, [data-testid="stTable"] td { overflow-wrap: anywhere; }
+[data-testid="stTextArea"] textarea { line-height: 1.55; }
+[data-testid="stDataFrame"], [data-testid="stExpander"] details, [data-testid="stAlert"] { border-radius: var(--aa-radius); }
+[data-testid="stExpander"] details { background: var(--aa-paper); }
+[data-testid="stExpander"] summary p { font-weight: 600; }
+[data-testid="stMetric"] { padding: .7rem .85rem; border-radius: var(--aa-radius); background: var(--aa-paper);
+  border: 1px solid var(--aa-line); }
+[data-testid="stMetricLabel"] p { font-size: .83rem; font-weight: 610; color: var(--aa-muted); }
+[data-testid="stMetricValue"] { font-size: 1.5rem; font-weight: 680; letter-spacing: -.025em; }
+.stButton > button, .stDownloadButton > button, [data-testid="stFormSubmitButton"] > button {
+  font-weight: 630; min-height: 2.45rem; transition: background-color .15s, border-color .15s;
+}
+button[kind="primary"]:hover:not(:disabled), button[kind="primaryFormSubmit"]:hover:not(:disabled) {
+  background: var(--aa-teal-dark); border-color: var(--aa-teal-dark);
+}
+button:disabled { cursor: not-allowed; }
+button:focus-visible, a:focus-visible, [role="tab"]:focus-visible {
+  outline: 2px solid var(--aa-teal); outline-offset: 2px;
+}
+[data-testid="stTabs"] [role="tablist"] { gap: .35rem; }
+[data-testid="stTabs"] [role="tab"] { padding-inline: .72rem; min-height: 2.55rem; border-radius: 8px 8px 0 0; }
+[data-testid="stTabs"] [role="tab"]:hover { background: var(--aa-soft); }
+[data-testid="stTabs"] [role="tab"][aria-selected="true"] { background: var(--aa-paper); color: var(--aa-teal); }
+[data-testid="stTabs"] [role="tab"] p { font-size: .9rem; font-weight: 650; }
 
-/* ---------- Tabs dạng segmented ---------- */
-[data-baseweb="tab-list"]{ gap:4px; background:#EEF1F6; padding:4px; border-radius:var(--r-md); width:fit-content;
-  max-width:100%; overflow-x:auto; }
-[data-baseweb="tab-list"] button[role="tab"]{ border-radius:9px; padding:6px 14px; height:auto; }
-[data-baseweb="tab-list"] button[role="tab"][aria-selected="true"]{ background:var(--surface); box-shadow:var(--shadow-sm); }
-[data-baseweb="tab-list"] button[role="tab"] p{ font-weight:600; font-size:.875rem; }
-[data-baseweb="tab-highlight"], [data-baseweb="tab-border"]{ display:none; }
-[data-testid="stTabs"] [data-baseweb="tab-panel"]{ padding-top:1.25rem; }
-
-/* ---------- Ô nhập, bảng, expander, alert ---------- */
-[data-testid="stTextArea"] textarea{ line-height:1.55; }
-[data-testid="stDataFrame"], [data-testid="stDataFrameResizable"]{ border-radius:var(--r-md); overflow:hidden; }
-[data-testid="stExpander"] details{ border-radius:var(--r-md); background:var(--surface); }
-[data-testid="stExpander"] summary p{ font-weight:600; }
-[data-testid="stAlert"]{ border-radius:var(--r-md); }
-[data-testid="stImage"] img{ border-radius:var(--r-md); border:1px solid var(--border); background:#fff; }
-[data-testid="stSidebarNav"] a{ border-radius:var(--r-sm); }
-[data-testid="stChatMessage"]{ border-radius:var(--r-lg); background:var(--surface); border:1px solid var(--border); }
-
-/* ---------- Thành phần tùy biến ---------- */
-.aa-header{ display:flex; justify-content:space-between; align-items:flex-end; gap:24px; margin:0 0 8px; flex-wrap:wrap; }
-.aa-eyebrow{ font-size:.75rem; font-weight:600; letter-spacing:.08em; text-transform:uppercase; color:var(--brand-600);
-  margin-bottom:6px; }
-.aa-title{ font-size:2rem; font-weight:800; letter-spacing:-0.025em; line-height:1.15; color:var(--text); margin:0; }
-.aa-sub{ font-size:1rem; color:var(--text-2); margin-top:8px; max-width:720px; line-height:1.55; }
-.aa-section{ margin:12px 0 4px; }
-.aa-approval-head{ display:flex; justify-content:space-between; align-items:flex-start; gap:16px; flex-wrap:wrap;
-  padding-bottom:16px; margin-bottom:4px; border-bottom:1px solid #F2F4F7; }
-.aa-approval-head h3{ margin:0; font-size:1.25rem; font-weight:700; letter-spacing:-0.01em; }
-.aa-section h3{ font-size:1.125rem; font-weight:650; margin:0; letter-spacing:-0.01em; color:var(--text); }
-.aa-section p{ font-size:.875rem; color:var(--text-3); margin:4px 0 0; }
-.aa-pill{ display:inline-flex; align-items:center; gap:6px; padding:3px 10px; border-radius:999px; font-size:.75rem;
-  font-weight:600; line-height:1.4; border:1px solid; white-space:nowrap; }
-.aa-pill .dot{ width:6px; height:6px; border-radius:50%; background:currentColor; }
-.aa-pill.live .dot{ animation:aa-pulse 1.4s ease-in-out infinite; }
-@keyframes aa-pulse{ 0%,100%{opacity:1} 50%{opacity:.25} }
-.aa-meta{ display:flex; gap:10px; align-items:center; flex-wrap:wrap; color:var(--text-3); font-size:.8125rem; }
-.aa-meta code{ font-size:.75rem; background:#F2F4F7; color:var(--text-2); padding:2px 8px; }
-
-/* Thẻ agent */
-.aa-agent{ display:flex; flex-direction:column; gap:10px; }
-.aa-agent-top{ display:flex; align-items:center; gap:10px; }
-.aa-icon{ width:36px; height:36px; border-radius:10px; display:grid; place-items:center; background:var(--brand-50);
-  color:var(--brand-600); font-family:'Material Symbols Rounded'; font-size:20px; flex:none; }
-.aa-agent-name{ font-weight:650; font-size:.9375rem; color:var(--text); line-height:1.2; }
-.aa-agent-step{ font-size:.75rem; color:var(--text-3); }
-.aa-agent-stats{ display:grid; grid-template-columns:repeat(3,1fr); gap:6px; padding-top:10px; border-top:1px solid #F2F4F7; }
-.aa-stat b{ display:block; font-size:.9375rem; color:var(--text); font-weight:650; }
-.aa-stat span{ font-size:.75rem; color:var(--text-3); white-space:nowrap; }
-.aa-model{ font-size:.75rem; color:var(--text-3); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-
-/* Stepper */
-.aa-stepper{ display:flex; align-items:center; gap:0; background:var(--surface); border:1px solid var(--border);
-  border-radius:var(--r-lg); padding:18px 20px; box-shadow:var(--shadow-xs); overflow-x:auto; }
-.aa-step{ display:flex; align-items:center; gap:10px; min-width:max-content; }
-.aa-step-dot{ width:30px; height:30px; border-radius:50%; display:grid; place-items:center; font-size:.8125rem;
-  font-weight:700; border:2px solid var(--border-strong); color:var(--text-3); background:#fff; flex:none; }
-.aa-step-label{ font-size:.8125rem; font-weight:600; color:var(--text-2); }
-.aa-step-sub{ font-size:.6875rem; color:var(--text-3); }
-.aa-step.done .aa-step-dot{ background:#ECFDF3; border-color:#17B26A; color:#067647; }
-.aa-step.active .aa-step-dot{ background:var(--brand); border-color:var(--brand); color:#fff;
-  box-shadow:0 0 0 4px rgba(79,70,229,.15); }
-.aa-step.warn .aa-step-dot{ background:#FFFAEB; border-color:#F79009; color:#B54708; }
-.aa-step.err .aa-step-dot{ background:#FEF3F2; border-color:#F04438; color:#B42318; }
-.aa-step-line{ flex:1; height:2px; background:var(--border); margin:0 14px; min-width:24px; border-radius:2px; }
-.aa-step-line.done{ background:#17B26A; }
-
-/* Timeline */
-.aa-tl{ position:relative; padding-left:4px; }
-.aa-tl-item{ display:grid; grid-template-columns:64px 18px 1fr; gap:10px; align-items:start; padding:8px 0; }
-.aa-tl-time{ font-family:'JetBrains Mono',monospace; font-size:.75rem; color:var(--text-3); padding-top:2px; }
-.aa-tl-dot{ width:10px; height:10px; border-radius:50%; margin-top:5px; background:#D0D5DD; box-shadow:0 0 0 3px #F2F4F7; }
-.aa-tl-item.ok .aa-tl-dot{ background:#17B26A; box-shadow:0 0 0 3px #DCFAE6; }
-.aa-tl-item.bad .aa-tl-dot{ background:#F04438; box-shadow:0 0 0 3px #FEE4E2; }
-.aa-tl-item.user .aa-tl-dot{ background:var(--brand); box-shadow:0 0 0 3px #E0EAFF; }
-.aa-tl-route{ font-size:.8125rem; font-weight:600; color:var(--text); }
-.aa-tl-route .arrow{ color:var(--text-3); font-weight:400; margin:0 4px; }
-.aa-tl-msg{ font-size:.875rem; color:var(--text-2); line-height:1.5; margin-top:2px; }
-.aa-tl-item.bad .aa-tl-msg{ color:#B42318; }
-.aa-tl-meta{ font-size:.6875rem; color:var(--text-3); margin-top:2px; }
-
-/* Thẻ tính năng (trang chủ) */
-.aa-feature{ background:var(--surface); border:1px solid var(--border); border-radius:var(--r-lg); padding:20px;
-  box-shadow:var(--shadow-xs); min-height:200px; }
-.aa-feature .aa-icon{ margin-bottom:14px; }
-.aa-feature h4{ font-size:.9375rem; font-weight:650; margin:0 0 4px; }
-.aa-feature p{ font-size:.8125rem; color:var(--text-3); margin:0; line-height:1.5; }
-.aa-hero{ background:linear-gradient(135deg,#EEF2FF 0%,#F6F7FB 55%,#ECFDF3 100%); border:1px solid var(--border);
-  border-radius:20px; padding:36px 40px; }
-.aa-flow{ display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin-top:18px; }
-.aa-flow .aa-pill{ font-size:.8125rem; padding:5px 12px; }
-
-/* Thẻ phương án */
-.aa-option h4{ margin:0; font-size:1rem; font-weight:700; }
-.aa-kv{ display:grid; grid-template-columns:1fr auto; gap:6px 12px; font-size:.8125rem; margin-top:8px; }
-.aa-kv span{ color:var(--text-3); } .aa-kv b{ color:var(--text); font-weight:600; text-align:right; }
-
-/* Tệp tải xuống */
-.aa-file{ display:flex; gap:12px; align-items:center; }
-.aa-file .aa-icon{ background:#F2F4F7; color:#344054; }
-.aa-file b{ font-size:.875rem; display:block; } .aa-file span{ font-size:.75rem; color:var(--text-3); }
+.aa-pill { display: inline-flex; align-items: center; gap: .4rem; padding: .22rem .57rem;
+  font-size: .78rem; font-weight: 650; line-height: 1.4; border: 1px solid; border-radius: 999px; }
+.aa-pill .dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+.aa-pill.live .dot { animation: aa-pulse 1.4s ease-in-out infinite; }
+@keyframes aa-pulse { 0%, 100% { opacity: 1; } 50% { opacity: .25; } }
+.aa-approval-head { display: flex; justify-content: space-between; align-items: flex-start; gap: .9rem;
+  border-bottom: 1px solid var(--aa-line); padding-bottom: .8rem; flex-wrap: wrap; }
+.aa-approval-head h3 { font-size: 1.15rem; margin: 0; padding: 0; }
+.aa-stepper { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); align-items: center;
+  gap: .7rem; background: var(--aa-paper); padding: 1rem; border-radius: var(--aa-radius); }
+.aa-step { display: flex; align-items: center; gap: .6rem; }
+.aa-step-dot { width: 29px; height: 29px; border-radius: 50%; display: grid; place-items: center;
+  flex: none; color: var(--aa-muted); background: #EFEEE8; font-size: .8rem; font-weight: 690; }
+.aa-step-label { font-weight: 640; font-size: .87rem; }
+.aa-step-sub, .aa-tl-meta { color: var(--aa-muted); font-size: .75rem; }
+.aa-step.done .aa-step-dot { background: #E9F2E9; color: #256249; }
+.aa-step.active .aa-step-dot { background: var(--aa-teal); color: #fff; }
+.aa-step.warn .aa-step-dot { background: #FEF0E1; color: #864208; }
+.aa-step.err .aa-step-dot { background: #FAEAE6; color: #9B302B; }
+.aa-tl-item { display: grid; grid-template-columns: 62px 10px minmax(0, 1fr); align-items: start;
+  gap: .6rem; padding: .6rem 0; border-bottom: 1px solid var(--aa-line); }
+.aa-tl-item:last-child { border-bottom: none; }
+.aa-tl-time { font-variant-numeric: tabular-nums; font-size: .79rem; color: var(--aa-muted); }
+.aa-tl-dot { width: 8px; height: 8px; border-radius: 50%; margin-top: 7px; background: var(--aa-teal); }
+.aa-tl-item.bad .aa-tl-dot { background: #B74B32; }
+.aa-tl-item.user .aa-tl-dot { background: var(--aa-wood); }
+.aa-tl-route { font-size: .88rem; font-weight: 640; }
+.aa-tl-route .arrow { padding: 0 .35em; color: var(--aa-muted); }
+.aa-tl-msg { color: var(--aa-muted); font-size: .875rem; margin: .18rem 0; }
+.aa-kv { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, auto); gap: .5rem 1rem; font-size: .87rem; }
+.aa-kv span { color: var(--aa-muted); }
+.aa-kv b { font-weight: 650; text-align: right; overflow-wrap: anywhere; }
+@media (max-width: 640px) {
+  .st-key-page_heading [data-testid="stHorizontalBlock"] { gap: .45rem; }
+  .st-key-page_heading [role="radiogroup"] { justify-content: flex-start; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .aa-pill.live .dot { animation: none; }
+  .stButton > button { transition: none; }
+}
 </style>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,400,0..1,0&display=block">
 """
 
 
+ASSETS = Path(__file__).with_name("assets")
+
+
 def inject() -> None:
-    st.markdown(CSS, unsafe_allow_html=True)
+    st.html(CSS)
+    st.html(ASSETS / "studio.css")
 
 
 def esc(s) -> str:
@@ -206,36 +180,108 @@ def esc(s) -> str:
 
 
 def html_block(markup: str) -> None:
-    st.markdown(markup, unsafe_allow_html=True)
+    st.html(markup)
 
 
 # ---------------------------------------------------------------------------
 # Thành phần
 # ---------------------------------------------------------------------------
-def pill(text: str, tone: str = "neutral", live: bool = False) -> str:
+ICONS = {
+    "layers": "M12 3 2 8l10 5 10-5-10-5ZM2 12l10 5 10-5M2 16l10 5 10-5",
+    "target": "M21 12a9 9 0 1 1-3-6.7M17 12a5 5 0 1 1-5-5m0 5 8-8m-1 0h3v3",
+    "check": "M22 12a10 10 0 1 1-5.5-9M7 12l3.2 3.3L21 5",
+    "clock": "M22 12a10 10 0 1 1-3-7.1M12 6v6l4 2",
+    "calendar": "M3 6h18v15H3zM7 3v6m10-6v6M3 11h18",
+    "clipboard": "M9 5H5v16h14V5h-4M9 3h6v5H9zM8 14l2 2 5-5",
+    "bed": "M3 17v3m18-3v3M3 17v-5h18v5H3Zm2-5V6h14v6M8 9h3m2 0h3",
+    "area": "M4 3h6v7h5V3h5v18H4zM4 14h6v7m5-11v6h5",
+    "coins": "M13 7c0 2-2.5 3-5 3S3 9 3 7s2.5-3 5-3 5 1 5 3ZM3 7v9c0 2 2.5 3 5 3m-5-8c0 2 2.5 3 5 3m8-4c3 0 5 1 5 3s-2 3-5 3-5-1-5-3 2-3 5-3Zm-5 3v5c0 2 2 3 5 3s5-1 5-3v-5",
+    "shield": "M12 22s8-4.5 8-11V5l-8-3-8 3v6c0 6.5 8 11 8 11Zm-4-10 3 3 5-6",
+    "download": "M12 3v12m-5-5 5 5 5-5M4 16v5h16v-5",
+    "file": "M6 3h8l4 4v14H6zM14 3v5h4M9 12h6m-6 4h6",
+    "repeat": "M4 10a8 8 0 0 1 14-5l2 2m0-4v4h-4M20 14a8 8 0 0 1-14 5l-2-2m0 4v-4h4",
+    "leaf": "M19 4c1 11-3 15-8 15-4 0-6-3-5-6 1-4 6-6 13-9ZM4 22l11-11",
+    "idea": "M9 18h6m-6 3h6m-6-6c0-2-3-3-3-7a6 6 0 0 1 12 0c0 4-3 5-3 7",
+    "warning": "M12 3 2 21h20L12 3Zm0 6v5m0 3v1",
+    "house": "M3 11 12 3l9 8m-2-2v12H5V9m5 12v-7h4v7",
+    "info": "M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20Zm0-11v5m0-9v1",
+    "arrow": "M4 12h15m-6-6 6 6-6 6",
+}
+
+
+def svg_uri(width: int, height: int, path: str, color: str) -> str:
+    svg = (f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {width} {height}" fill="none" stroke="{color}" '
+           f'stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="{path}"/></svg>')
+    return "data:image/svg+xml;base64," + b64encode(svg.encode("ascii")).decode("ascii")
+
+
+@lru_cache(maxsize=len(ICONS))
+def icon(name: str) -> str:
+    uri = svg_uri(24, 24, ICONS[name], "black")
+    return f'<span class="aa-icon" aria-hidden="true" style="--aa-glyph:url({uri})"></span>'
+
+
+@lru_cache(maxsize=1)
+def _house_uri() -> str:
+    return "data:image/svg+xml;base64," + b64encode((ASSETS / "studio-townhouse.svg").read_bytes()).decode("ascii")
+
+
+def house_art() -> str:
+    return f'<img class="aa-house-art" aria-hidden="true" alt="" src="{_house_uri()}">'
+
+
+def brand() -> None:
+    uri = svg_uri(88, 72, "M2 68h84M14 68V43L62 4v64M49 68V25l31 19v24M32 68V57l5-4 5 4v11", "#A25D28")
+    html_block(f'<div class="aa-wordmark"><img class="aa-mark" alt="" src="{uri}">'
+               '<span>AI Architect<br>Studio</span></div>')
+
+
+def emblem(glyph: str, tone: str = "brand") -> str:
+    fg, bg, _ = TONES[tone]
+    return f'<span class="aa-emblem" style="color:{fg};background:{bg}">{icon(glyph)}</span>'
+
+
+def kpi(title: str, value, glyph: str, tone: str = "brand", note: str = "", *, compact: bool = False) -> str:
+    caption = f'<small class="aa-kpi-note">{esc(note)}</small>' if note else ""
+    variant = ' data-compact="true"' if compact else ""
+    return (f'<div class="aa-kpi">{emblem(glyph, tone)}<div class="aa-kpi-body">'
+            f'<span class="aa-kpi-title">{esc(title)}</span><strong class="aa-kpi-value"{variant}>{esc(value)}</strong>'
+            f'{caption}</div></div>')
+
+
+def kpi_grid(cards: list[str]) -> None:
+    html_block(f'<div class="aa-kpi-grid">{"".join(cards)}</div>')
+
+
+def fact(title: str, value: str, glyph: str, tone: str = "brand", *, status: bool = False) -> str:
+    rendered = pill(value, tone) if status else esc(value)
+    return (f'<div class="aa-fact">{emblem(glyph, tone)}<span>{esc(title)}</span>'
+            f'<span class="aa-fact-value">{rendered}</span></div>')
+
+
+def pill(text: str, tone: str = "neutral", live: bool = False, glyph: str = "") -> str:
     fg, bg, bd = TONES.get(tone, TONES["neutral"])
     return (f'<span class="aa-pill{" live" if live else ""}" style="color:{fg};background:{bg};border-color:{bd}">'
-            f'<span class="dot"></span>{esc(text)}</span>')
+            f'{icon(glyph) if glyph else "<span class=dot></span>"}{esc(text)}</span>')
 
 
 def run_pill(status: str) -> str:
     text, tone = RUN_STATUS_TONE.get(status, (status, "neutral"))
-    return pill(text, tone, live=status == "running")
+    glyph = {"done": "check", "running": "clock", "awaiting_approval": "clock", "error": "warning"}.get(status, "")
+    return pill(text, tone, live=status == "running", glyph=glyph)
 
 
-def icon(name: str) -> str:
-    return f'<div class="aa-icon">{esc(name)}</div>'
+def page_header(title: str, subtitle: str = "", *, project: str = "", live_badge: bool = True) -> None:
+    name = f'<span class="aa-heading-project">{esc(project)}</span>' if project else ""
+    mode = pill("Dữ liệu thật", "brand") if live_badge else ""
+    description = f'<p class="aa-sub">{esc(subtitle)}</p>' if subtitle else ""
+    st.html(f'<div class="aa-header"><div class="aa-heading-line"><h1 class="aa-title">{esc(title)}</h1>'
+            f'{name}{mode}</div>{description}</div>')
 
 
-def page_header(eyebrow: str, title: str, subtitle: str = "", meta_html: str = "") -> None:
-    html_block(f'<div class="aa-header"><div><div class="aa-eyebrow">{esc(eyebrow)}</div>'
-               f'<h1 class="aa-title">{esc(title)}</h1>'
-               + (f'<div class="aa-sub">{esc(subtitle)}</div>' if subtitle else "")
-               + "</div>" + (f'<div class="aa-meta">{meta_html}</div>' if meta_html else "") + "</div>")
-
-
-def section(title: str, subtitle: str = "") -> None:
-    html_block(f'<div class="aa-section"><h3>{esc(title)}</h3>' + (f"<p>{esc(subtitle)}</p>" if subtitle else "")
+def section(title: str, subtitle: str = "", *, glyph: str = "") -> None:
+    mark = icon(glyph) + " " if glyph else ""
+    html_block(f'<div class="aa-section"><h2>{mark}{esc(title)}</h2>' + (f"<p>{esc(subtitle)}</p>" if subtitle else "")
                + "</div>")
 
 
@@ -247,22 +293,7 @@ def stepper(steps: list[tuple[str, str, str]]) -> None:
         cls = {"done": "done", "active": "active", "warn": "warn", "err": "err"}.get(stt, "")
         parts.append(f'<div class="aa-step {cls}"><div class="aa-step-dot">{mark}</div><div>'
                      f'<div class="aa-step-label">{esc(lab)}</div><div class="aa-step-sub">{esc(sub)}</div></div></div>')
-        if i < len(steps):
-            parts.append(f'<div class="aa-step-line {"done" if stt == "done" else ""}"></div>')
     html_block(f'<div class="aa-stepper">{"".join(parts)}</div>')
-
-
-def agent_card_html(step: int, name: str, agent: str, status: str, model: str, runs: int, duration: float,
-                    tokens: int, errors: int = 0) -> str:
-    text, tone = AGENT_STATUS.get(status, (status, "neutral"))
-    err = (f'<div class="aa-tl-meta" style="color:#B42318">{errors} lần gửi phản hồi lỗi</div>' if errors else "")
-    return (f'<div class="aa-agent"><div class="aa-agent-top">{icon(AGENT_ICON.get(agent, "smart_toy"))}<div>'
-            f'<div class="aa-agent-step">Bước {step}</div><div class="aa-agent-name">{esc(name)}</div></div></div>'
-            f'<div>{pill(text, tone, live=status in ("running", "revising"))}</div>'
-            f'<div class="aa-model" title="{esc(model)}">{esc(model)}</div>'
-            f'<div class="aa-agent-stats"><div class="aa-stat"><b>{runs}</b><span>Lần</span></div>'
-            f'<div class="aa-stat"><b>{duration:.1f}</b><span>Giây</span></div>'
-            f'<div class="aa-stat"><b>{f"{tokens:,}".replace(",", ".")}</b><span>Token</span></div></div>{err}</div>')
 
 
 def timeline(items: list[dict], label_fn) -> None:

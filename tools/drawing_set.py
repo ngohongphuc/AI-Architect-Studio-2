@@ -5,6 +5,7 @@ import zipfile
 from datetime import date
 from pathlib import Path
 
+from tools.design_option import option_label, option_stamp
 from tools.drawing_elevation import draw_front_elevation, draw_long_section
 from tools.drawing_plan import draw_floor_plan, draw_roof_plan, draw_site_plan
 from tools.sheet import Sheet, render_dxf, render_mpl
@@ -25,6 +26,10 @@ def sheet_info(brief: dict, version: int) -> dict:
 
 def build_sheets(brief: dict, program: dict, layout: dict, area: dict, version: int = 1) -> list[Sheet]:
     info = sheet_info(brief, version)
+    if option_stamp(program):
+        info.update(phien_ban=f"{program['phuong_an']} · v{program['option_version']}",
+                    ma_phuong_an=option_stamp(program),
+                    ghi_chu_ban_ve="Xem giả định và nội dung cần xác minh trong thuyết minh.")
     sheets: list[Sheet] = []
 
     s = Sheet("KT-01", "Mặt bằng tổng thể", info)
@@ -70,11 +75,13 @@ def export_drawings(brief: dict, program: dict, layout: dict, area: dict, out_di
         meta = pdf.infodict()
         meta["Title"] = "Bộ bản vẽ thiết kế sơ bộ – AI Architect Studio"
         meta["Author"] = "AI Architect Studio"
+        if option_stamp(program):
+            meta["Subject"] = option_stamp(program)
         for s in sheets:
             fig = render_mpl(s)
             pdf.savefig(fig)
             png = png_dir / f"{s.code}.png"
-            fig.savefig(png, dpi=dpi)
+            fig.savefig(png, dpi=dpi, metadata={"Description": option_stamp(program)})
             plt.close(fig)
             dxf = dxf_dir / f"{s.code}.dxf"
             render_dxf(s, dxf)
@@ -85,4 +92,4 @@ def export_drawings(brief: dict, program: dict, layout: dict, area: dict, out_di
         for item in index:
             z.write(item["dxf"], arcname=Path(item["dxf"]).name)
     return {"pdf": str(pdf_path), "dxf_zip": str(zip_path), "dxf_dir": str(dxf_dir), "sheets": index,
-            "version": version}
+            "version": version, "phuong_an": option_label(program)}

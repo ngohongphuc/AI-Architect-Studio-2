@@ -1,29 +1,29 @@
-# Theme "Modern" – AI Architect Studio
-# Neutral: Slate · Accent: Indigo · tương phản chữ/nền đạt WCAG AA
+# Studio kiến trúc hiện đại
 [theme]
 base = "light"
-primaryColor = "#4F46E5"
-backgroundColor = "#F6F7FB"
-secondaryBackgroundColor = "#EEF1F6"
-textColor = "#101828"
-linkColor = "#4338CA"
-borderColor = "#E4E7EC"
-dataframeBorderColor = "#EAECF0"
+primaryColor = "#087B81"
+backgroundColor = "#F6F5F1"
+secondaryBackgroundColor = "#FFFEFC"
+textColor = "#172B35"
+linkColor = "#11616F"
+borderColor = "#E0DED5"
+dataframeBorderColor = "#E0DED5"
+dataframeHeaderBackgroundColor = "#EBEEEC"
 showWidgetBorder = true
 baseRadius = "0.75rem"
 buttonRadius = "0.625rem"
-baseFontSize = 15
-font = "Inter:https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
-headingFont = "Inter:https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
-codeFont = "JetBrains Mono:https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap"
+baseFontSize = 16
+font = "sans-serif"
+headingFont = "sans-serif"
+codeFont = "monospace"
 headingFontSizes = ["2rem", "1.5rem", "1.125rem", "1rem", "0.9375rem", "0.875rem"]
 headingFontWeights = [800, 700, 650, 600, 600, 600]
-chartCategoricalColors = ["#4F46E5", "#0E9384", "#DC6803", "#D92D20", "#7A5AF8", "#1570EF"]
+chartCategoricalColors = ["#167D8D", "#C89868", "#547E6B", "#B95D21", "#B4403A", "#456381"]
 
 [theme.sidebar]
-backgroundColor = "#FFFFFF"
-secondaryBackgroundColor = "#F2F4F7"
-borderColor = "#EAECF0"
+backgroundColor = "#F8F5F0"
+secondaryBackgroundColor = "#F0ECE5"
+borderColor = "#E0DED5"
 
 [client]
 toolbarMode = "minimal"

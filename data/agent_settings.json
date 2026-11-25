@@ -1,0 +1,46 @@
+{
+  "version": 1,
+  "models": {
+    "project_manager": {
+      "provider": "openai",
+      "model": "gpt-6-luna"
+    },
+    "requirements_analyst": {
+      "provider": "openai",
+      "model": "gpt-6-luna"
+    },
+    "concept_architect": {
+      "provider": "openai",
+      "model": "gpt-6-luna"
+    },
+    "architect": {
+      "provider": "openai",
+      "model": "gpt-6-luna"
+    },
+    "reviewer": {
+      "provider": "openai",
+      "model": "gpt-6-luna"
+    },
+    "cost_estimator": {
+      "provider": "openai",
+      "model": "gpt-6-luna"
+    }
+  },
+  "custom_agents": [
+    {
+      "id": "custom_ky_su_ket_cau",
+      "name": "Kỹ sư kết cấu",
+      "role": "kỹ sư kết cấu nhà phố, 10 năm kinh nghiệm",
+      "prompt": "Rà soát mặt bằng theo góc nhìn kết cấu nhà phố: nhịp phòng lớn, vị trí câu thang, giếng trời và tải tầng mái. Nêu tối đa 5 rủi ro, mỗi rủi ro kèm một kiến nghị cụ thể.",
+      "after": "drafter",
+      "inputs": [
+        "brief",
+        "area_table"
+      ],
+      "enabled": true,
+      "provider": "",
+      "model": ""
+    }
+  ],
+  "updated": "2026-11-24T21:38:33"
+}

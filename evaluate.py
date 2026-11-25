@@ -13,8 +13,7 @@ import logging
 import time
 from pathlib import Path
 
-from docx import Document
-from openpyxl import load_workbook
+from agents.final_reviewer import audit
 
 from config import BUDGET_TOLERANCE, OUTPUT_DIR, ROOT
 from graph import run_design
@@ -24,36 +23,9 @@ TESTS = ROOT / "tests" / "test_requests.json"
 
 
 def consistency(final: dict) -> float:
-    """% số liệu khớp giữa bản vẽ (layout) – thuyết minh (DOCX) – file chi phí (XLSX)."""
-    area = final["area_table"]
-    files = final["final_files"]
-    checks = []
-    # bản vẽ: tổng diện tích phòng từ layout
-    layout_total = sum(r["dien_tich"] for fl in final["layout"]["floors"].values() for r in fl["rooms"]
-                       if r["loai"] not in ("ban_cong", "san_phoi", "gieng_troi", "san"))
-    checks.append(abs(layout_total - area["tong_dien_tich_san"]) < 0.05)
-    # thuyết minh: dòng "TỔNG DIỆN TÍCH SÀN" trong bảng thống kê
-    doc = Document(files["thuyet_minh_docx"])
-    total_doc = None
-    for t in doc.tables:
-        for row in t.rows:
-            cells = [c.text for c in row.cells]
-            if len(cells) >= 4 and cells[1] == "TỔNG DIỆN TÍCH SÀN":
-                total_doc = float(cells[3].replace(".", "").replace(",", "."))
-    checks.append(total_doc is not None and abs(total_doc - area["tong_dien_tich_san"]) < 0.05)
-    # file chi phí: diện tích từng tầng trong sheet Dien_tich
-    wb = load_workbook(files["du_toan_xlsx"])
-    ws = wb["Dien_tich"]
-    floors = {}
-    for row in ws.iter_rows(min_row=4, max_col=3, values_only=True):
-        if isinstance(row[1], str) and row[1].startswith("Sàn tầng"):
-            floors[int(row[1].split()[-1])] = row[2]
-    for t in area["tang"]:
-        checks.append(abs((floors.get(t["tang"]) or -1) - t["dien_tich_san"]) < 0.01)
-    # số tầng trong bản vẽ = thuyết minh = chi phí
-    n_sheets = sum(1 for s in final["drawings"]["sheets"] if s["ten"].startswith("Mặt bằng tầng"))
-    checks.append(n_sheets == area["so_tang"] == len(floors))
-    return sum(checks) / len(checks)
+    """Đối chiếu bộ tệp đã bàn giao bằng cùng phép kiểm tra như trong luồng."""
+    files = final.get("final_files")
+    return float(bool(files) and audit({**final, "draft_files": files}).dat)
 
 
 def requirement_match(final: dict, expect: dict) -> float:
@@ -76,7 +48,15 @@ def evaluate(max_iterations: int, label: str) -> list[dict]:
         t0 = time.time()
         try:
             final = run_design(c["request"], max_iterations=max_iterations, persist=False)
-            ok = all(Path(p).exists() for k, p in final["final_files"].items() if k != "timeline_csv")
+            files = final.get("final_files") or {}
+            ok = bool(files) and all(Path(p).is_file() for p in files.values())
+            if not final.get("cost"):
+                assessment = final.get("brief_assessment") or {}
+                notes = (assessment.get("questions", []) + assessment.get("conflicts", [])
+                         + [issue["noi_dung"] for issue in final.get("remaining_issues") or []])
+                rows.append({"cau_hinh": label, "id": c["id"], "hoan_thanh": False,
+                             "vong_sua": final["iteration"], "loi_con_lai": " | ".join(notes)})
+                continue
             cost = final["cost"]
             tokens = tracker.tokens(final["run_id"])
             rows.append({

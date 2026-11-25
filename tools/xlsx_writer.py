@@ -44,7 +44,8 @@ def _row(ws, row, values, fmts=None, bold=False, fill=None):
             c.fill = fill
 
 
-def write_cost_xlsx(cost: dict, area: dict, brief: dict, path: Path, notes: str = "") -> Path:
+def write_cost_xlsx(cost: dict, area: dict, brief: dict, path: Path, notes: str = "", *,
+                    option: dict | None = None) -> Path:
     P = load_prices()
     wb = Workbook()
     ws_th = wb.active
@@ -53,6 +54,17 @@ def write_cost_xlsx(cost: dict, area: dict, brief: dict, path: Path, notes: str 
     ws_ct = wb.create_sheet("Chi_tiet")
     ws_dg = wb.create_sheet("Don_gia")
     ws_tk = wb.create_sheet("Tiet_kiem")
+    if option:
+        wb.properties.identifier = option["stamp"]
+        sheet = wb.create_sheet("Gia_dinh")
+        sheet["A1"] = "THIẾT KẾ SƠ BỘ"
+        sheet["A2"] = option["label"]
+        _header(sheet, 4, ["Nhóm", "Mục cần rà soát", "Nội dung"], [24, 44, 85])
+        for row in option["notes"]:
+            sheet.append(row)
+            sheet[f"C{sheet.max_row}"].alignment = Alignment(wrap_text=True, vertical="top")
+            sheet.row_dimensions[sheet.max_row].height = 42
+        sheet.freeze_panes = "A5"
 
     # ---------------- Don_gia ----------------
     ws_dg["A1"] = "BẢNG ĐƠN GIÁ THAM KHẢO ĐÃ DÙNG (ô màu xanh có thể sửa – các sheet khác tự tính lại)"
@@ -156,9 +168,10 @@ def write_cost_xlsx(cost: dict, area: dict, brief: dict, path: Path, notes: str 
     ws_th.column_dimensions["C"].width = 50
     rows = [
         ("Tổng chi phí dự kiến", f"={total_ref}", VND, "Chi_tiet"),
-        ("Ngân sách chủ đầu tư", cost["ngan_sach"], VND, "Nhập từ yêu cầu (có thể sửa)"),
+        ("Ngân sách giả định" if cost.get("ngan_sach_gia_dinh") else "Ngân sách chủ đầu tư",
+         cost["ngan_sach"], VND, "Cần xác nhận (có thể sửa)" if cost.get("ngan_sach_gia_dinh") else "Nhập từ yêu cầu (có thể sửa)"),
         ("Chênh lệch (dự kiến – ngân sách)", "=B4-B5", VND, "Dương = vượt ngân sách"),
-        ("Tỉ lệ vượt ngân sách", "=IF(B5=0,0,B6/B5)", "0.0%", "Ngưỡng cho phép 10%"),
+        ("Tỉ lệ vượt ngân sách", "=IF(B5=0,0,B6/B5)", "0.0%", "Mốc phản hồi chi phí 10%"),
         ("Tổng diện tích sàn hoàn thiện (m²)", f"={dt_ht_ref}", M2, "Dien_tich"),
         ("Tổng diện tích quy đổi (m²)", f"={dt_qd_ref}", M2, "Dien_tich"),
         ("Chi phí / m² sàn", "=IF(B8=0,0,B4/B8)", VND, ""),

@@ -66,10 +66,15 @@ def _table(doc: Document, header: list[str], rows: list[list], widths: list[floa
 
 
 def write_description_docx(state: dict, texts: dict, path: Path) -> Path:
+    from tools.design_option import option_label, option_stamp, selected_assumptions
+    from tools.review_display import MISSING, regulatory_label, review_rows
+
     brief, program, area = state["brief"], state["program"], state["area_table"]
     review, cost = state.get("review", {}), state.get("cost", {})
     ld, gd, yc = brief["lo_dat"], brief["gia_dinh"], brief["yeu_cau_phong"]
     doc = Document()
+    if option_stamp(program):
+        doc.core_properties.identifier = option_stamp(program)
     _setup(doc)
 
     # ---- Trang bìa ----
@@ -93,7 +98,9 @@ def write_description_docx(state: dict, texts: dict, path: Path) -> Path:
         doc.add_paragraph()
     p = doc.add_paragraph()
     p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    p.add_run(f"Mã hồ sơ: {state.get('run_id', '')}\nNgày lập: {date.today():%d/%m/%Y}").italic = True
+    label = option_label(program)
+    identity = f"{label}\n" if label else ""
+    p.add_run(f"{identity}Mã hồ sơ: {state.get('run_id', '')}\nNgày lập: {date.today():%d/%m/%Y}").italic = True
     doc.add_page_break()
 
     # ---- 1. Thông tin chung ----
@@ -177,23 +184,28 @@ def write_description_docx(state: dict, texts: dict, path: Path) -> Path:
     ], [8, 8])
 
     # ---- 7. Quy chuẩn ----
-    doc.add_heading("7. Kết quả kiểm tra quy chuẩn", level=1)
-    doc.add_paragraph(f"Kết luận: {'ĐẠT' if review.get('dat') else 'CÒN TỒN TẠI LỖI (xem mục 10)'} – sau "
-                      f"{state.get('iteration', 0)} vòng sửa.")
-    rows = [[c["muc"], c["hien_tai"], c["cho_phep"], "Đạt" if c["dat"] else "Không đạt"]
-            for c in review.get("kiem_tra", [])]
-    _table(doc, ["Tiêu chí", "Phương án", "Yêu cầu", "Kết quả"], rows, [5.5, 4, 4, 2.5])
+    doc.add_heading("7. Kiểm tra kỹ thuật và xác minh quy chuẩn", level=1)
+    checks = review_rows(review, brief)
+    doc.add_paragraph(f"Xác minh quy chuẩn — {regulatory_label(checks)}. Vòng sửa tự động {state.get('iteration', 0)}.")
+    rows = [[row["criterion"], row["actual"],
+             "Cần xác minh" if row["status"] == MISSING else row["threshold"], row["status"]]
+            for row in checks]
+    _table(doc, ["Tiêu chí", "Phương án", "Ngưỡng phép kiểm", "Kết quả"], rows, [5, 3.5, 3.5, 4])
+    for row in checks:
+        if row["regulatory"]:
+            detail = row["reason"] if row["status"] == MISSING else f"{row['source']}. Phạm vi: {row['scope']}"
+            if row["status"] == MISSING and row["action"]:
+                detail += f" Cách bổ sung: {row['action']}"
+            doc.add_paragraph(f"{row['criterion']} — {detail}", style="List Bullet")
     if review.get("canh_bao"):
         doc.add_paragraph("Khuyến nghị:")
         for w in review["canh_bao"]:
             doc.add_paragraph(f"{w.get('muc', '')}: {w.get('noi_dung', '')}", style="List Bullet")
-    refs = {(c.get("trich_dan") or {}).get("nguon") for c in review.get("kiem_tra", []) if c.get("trich_dan")}
-    if refs:
-        doc.add_paragraph("Căn cứ tra cứu: " + "; ".join(sorted(r for r in refs if r))).italic = True
 
     # ---- 8. Phong thủy ----
     doc.add_heading("8. Tư vấn phong thủy", level=1)
-    fs = review.get("phong_thuy", {})
+    advice = state.get("fengshui") or {}
+    fs = advice.get("thong_tin", {})
     if fs.get("co_du_lieu"):
         _table(doc, ["Nội dung", "Kết quả"], [
             ["Năm sinh chủ nhà", f"{fs['nam_sinh']} ({fs['can_chi']}) – {fs['gioi_tinh']}"],
@@ -206,9 +218,11 @@ def write_description_docx(state: dict, texts: dict, path: Path) -> Path:
         doc.add_paragraph(fs.get("goi_y_bep", ""), style="List Bullet")
         doc.add_paragraph(fs.get("goi_y_ban_tho", ""), style="List Bullet")
     else:
-        doc.add_paragraph(fs.get("ghi_chu", "Không có dữ liệu năm sinh."))
-    for c in review.get("phong_thuy_bo_tri", []):
+        doc.add_paragraph(fs.get("ghi_chu", "Không có dữ liệu năm sinh." if state.get("fengshui_enabled", True) else "Đã tắt tư vấn phong thủy."))
+    for c in advice.get("bo_tri", []):
         doc.add_paragraph(f"{'✔' if c['dat'] else '✘'} {c['noi_dung']}", style="List Bullet")
+    for note in advice.get("goi_y", []):
+        doc.add_paragraph(note["noi_dung"] + ". " + note["de_xuat"], style="List Bullet")
     doc.add_paragraph(texts.get("phong_thuy", ""))
 
     # ---- 9. Chi phí ----
@@ -220,7 +234,8 @@ def write_description_docx(state: dict, texts: dict, path: Path) -> Path:
         rows.append(["TỔNG CHI PHÍ DỰ KIẾN", "", "", vnd(cost["tong_chi_phi"])])
         _table(doc, ["Hạng mục", "Khối lượng", "Đơn giá", "Thành tiền"], rows, [6, 3.5, 3, 3.5], bold_last=True)
         doc.add_paragraph(
-            f"Ngân sách {vnd(cost['ngan_sach'])}; chênh lệch {vnd(cost['chenh_lech'])} "
+            f"Ngân sách{' giả định' if cost.get('ngan_sach_gia_dinh') else ''} {vnd(cost['ngan_sach'])}, "
+            f"chênh lệch {vnd(cost['chenh_lech'])} "
             f"({vn_num(cost['vuot_pct'] * 100)}%). Chi phí bình quân {vnd(cost['chi_phi_m2_san'])}/m² sàn. "
             f"Chi tiết xem file du_toan.xlsx.")
         if texts.get("chi_phi"):
@@ -228,9 +243,11 @@ def write_description_docx(state: dict, texts: dict, path: Path) -> Path:
 
     # ---- 10. Giả định ----
     doc.add_heading("10. Các giả định và lưu ý", level=1)
-    notes = list(brief.get("gia_dinh_bo_sung", [])) + list(program.get("ghi_chu", []))
+    notes = selected_assumptions(state) + list(program.get("ghi_chu", []))
     for n in notes:
         doc.add_paragraph(n, style="List Bullet")
+    for question in (state.get("brief_assessment") or {}).get("needs_confirmation", []):
+        doc.add_paragraph("Thông tin cần bổ sung — " + question, style="List Bullet")
     if program.get("lich_su_sua"):
         doc.add_paragraph("Các điều chỉnh qua vòng phản hồi giữa các agent:")
         for n in program["lich_su_sua"]:
