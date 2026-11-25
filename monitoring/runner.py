@@ -45,6 +45,7 @@ class Run:
     elapsed: float = 0.0
     error: str = ""
     interrupt_payload: dict | None = None
+    interrupt_id: str = ""        # mã riêng của điểm duyệt đang chờ, để lệnh cũ không áp vào điểm duyệt mới
     pause_requested: bool = False
     stop_requested: bool = False
     thread: threading.Thread | None = None
@@ -83,7 +84,7 @@ class Run:
                 tasks.cancel_open(self.run_id, "Lượt thiết kế đã dừng")
                 events.update_run(self.run_id, "stopped")
             elif snap.next and pending:
-                self.interrupt_payload = pending[0].value
+                self.interrupt_payload, self.interrupt_id = pending[0].value, pending[0].id
                 self.status = "needs_input" if self.interrupt_payload.get("clarification") else "awaiting_approval"
                 events.update_run(self.run_id, self.status)
             elif snap.next:
@@ -102,15 +103,18 @@ class Run:
         finally:
             self.elapsed += time.time() - t0
 
-    def _start(self, inp, config=None) -> None:
+    def _start(self, inp, config=None) -> bool:
+        if self.thread and self.thread is not threading.current_thread():
+            self.thread.join(timeout=1.0)    # luồng cũ vừa đặt xong trạng thái chờ, đang kết thúc
         if self.thread and self.thread.is_alive():
-            return
+            return False
         self.stop_requested = self.pause_requested = False
-        self.interrupt_payload = None
+        self.interrupt_payload, self.interrupt_id = None, ""
         self.status = "running"          # đặt ngay để giao diện không thấy trạng thái cũ
         events.update_run(self.run_id, "running")
         self.thread = threading.Thread(target=self._loop, args=(inp, config), daemon=True)
         self.thread.start()
+        return True
 
     # ------------------------------------------------------------------
     def pause(self):
@@ -129,11 +133,16 @@ class Run:
                 tasks.cancel_open(self.run_id, "Lượt thiết kế đã dừng")
                 events.update_run(self.run_id, "stopped")
 
-    def answer(self, action: str, feedback: str = "", **data):
-        """Trả lời điểm duyệt thủ công: approve | revise | edit (rows, settings) | stop."""
+    def answer(self, action: str, feedback: str = "", *, expected: str | None = None, **data) -> bool:
+        """Trả lời điểm duyệt thủ công: approve | revise | edit (rows, settings) | stop.
+
+        `expected` là mã điểm duyệt mà người trả lời đã xem; trả False khi điểm duyệt đã đổi hoặc đã được trả lời.
+        """
         with self._dispatch_lock:
-            if self.status in ("awaiting_approval", "needs_input") and self.interrupt_payload:
-                self._start(Command(resume=redact({"action": action, "feedback": feedback, **data})))
+            if (self.status not in ("awaiting_approval", "needs_input") or not self.interrupt_payload
+                    or (expected is not None and expected != self.interrupt_id)):
+                return False
+            return self._start(Command(resume=redact({"action": action, "feedback": feedback, **data})))
 
     def can_rerun(self, agent: str, state: dict) -> bool:
         needs = {
@@ -246,6 +255,7 @@ class RunManager:
         self.runs: dict[str, Run] = {}
         self._submissions: dict[str, str] = {}
         self._start_lock = threading.Lock()
+        self._get_lock = threading.Lock()    # web và bot có thể cùng mở lại một lượt
 
     def start(self, request: str, manual_review: bool = False, max_iterations: int = MAX_ITERATIONS,
               approval_points: list | None = None, fengshui_enabled: bool = True, *,
@@ -264,6 +274,10 @@ class RunManager:
             return run
 
     def get(self, run_id: str) -> Run:
+        with self._get_lock:
+            return self._get(run_id)
+
+    def _get(self, run_id: str) -> Run:
         if run_id not in self.runs:
             # mở lại lượt cũ từ checkpointer (lịch sử thiết kế)
             run = Run(run_id=run_id, request="")
@@ -276,7 +290,7 @@ class RunManager:
                 run.status = stored
             elif pending:
                 run.current_node = snap.next[0] if snap.next else ""
-                run.interrupt_payload = pending[0].value
+                run.interrupt_payload, run.interrupt_id = pending[0].value, pending[0].id
                 run.status = "needs_input" if run.interrupt_payload.get("clarification") else "awaiting_approval"
             else:
                 run.status = ("paused" if snap.next else

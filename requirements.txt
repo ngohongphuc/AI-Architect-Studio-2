@@ -10,6 +10,7 @@ openpyxl>=3.1
 pypdf>=4.0
 streamlit>=1.67
 pillow>=10.0
+requests>=2.31               # bot Telegram
 
 pycel>=1.0b30  # Đối chiếu công thức XLSX trước khi bàn giao
 

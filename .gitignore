@@ -4,5 +4,6 @@ __pycache__/
 .env
 outputs/
 monitoring/*.db
+monitoring/*.lock
 data/chroma/
 .DS_Store

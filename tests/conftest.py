@@ -14,3 +14,4 @@ for _agent in ("PROJECT_MANAGER", "REQUIREMENTS_ANALYST", "CONCEPT_ARCHITECT", "
                "DRAFTER", "REVIEWER", "FENGSHUI_ADVISOR", "COST_ESTIMATOR", "FINAL_REVIEWER"):
     os.environ[f"LLM_PROVIDER_{_agent}"] = "none"
 os.environ["USE_CHROMA"] = "0"
+os.environ["TELEGRAM_BOT_TOKEN"] = os.environ["TELEGRAM_ALLOWED_USERS"] = ""   # test không chạy bot thật

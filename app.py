@@ -1,10 +1,16 @@
 """Điểm vào Streamlit và điều hướng dùng chung."""
 import streamlit as st
 
+import app_guard
+import telegram_bot
 import ui_theme as ui
 
 st.set_page_config(page_title="AI Architect Studio", page_icon=":material/architecture:",
                    layout="wide", initial_sidebar_state="auto")
+
+other = app_guard.other_instance()
+if not other:
+    telegram_bot.ensure_started()  # bot chạy cùng tiến trình để dùng chung bộ điều khiển lượt với web
 
 pages = [
     st.Page("views/projects.py", title="Dự án", icon=":material/folder_open:", url_path="Du_an", default=True),
@@ -25,4 +31,11 @@ with st.sidebar:
             st.page_link(page, width="stretch")
     with st.container(key="sidebar_art"):
         ui.html_block(ui.house_art())
+if other:
+    st.warning(f"Một ứng dụng khác (PID {other}) đang chạy trên cùng dữ liệu. Hãy tắt bớt một ứng dụng: "
+               "điều khiển một lượt từ hai nơi có thể xung đột, và bot Telegram chỉ chạy ở ứng dụng kia.",
+               icon=":material/warning:")
+if stale := app_guard.stale_modules():
+    st.warning(f"Mã nguồn đã thay đổi ({', '.join(stale[:4])}{'…' if len(stale) > 4 else ''}) nhưng ứng dụng còn dùng bản cũ. "
+               "Hãy dừng và chạy lại ứng dụng.", icon=":material/restart_alt:")
 selected.run()

@@ -44,6 +44,8 @@ Tab **Hiệu suất** mặc định xem dữ liệu thật và có biểu đồ 
 
 Bảng ghi công việc thực thi từ backend vào SQLite `monitoring/logs.db`. Các lượt cũ vẫn có nhật ký bàn giao. Kịch bản mô phỏng 3D chạy trong trình duyệt và tách khỏi bảng công việc. Số lượt gọi phản ánh lời gọi model mà ứng dụng quan sát được. Chi phí được ghi khi model cung cấp giá trị hoặc khi có đơn giá `LLM_PRICE_PER_MTOK` để tính ước lượng từ token.
 
+Có thể giao việc, duyệt và nhận hồ sơ qua Telegram. Xem [Bot Telegram](#bot-telegram).
+
 Trong **Kết quả**, chọn **Dự án** và **Phương án / phiên bản**. Tab **Bản vẽ** mở đầu tiên và cho chọn tờ, phóng to, kéo, vừa khung hoặc mở rộng. Tab **Mô hình 3D** cho xoay, ẩn/hiện từng tầng và cắt ngang ngôi nhà. Các tab **Thuyết minh**, **Dự toán** và **Kiểm định** hiển thị theo cùng phiên bản. Panel **Tải hồ sơ** bật nút PDF, ZIP DXF, GLB, DXF 3D, DOCX và XLSX theo tệp đã đối chiếu. Mở **So sánh các phương án hiện hành** để xem các phương án và những giả định đã lưu. Chọn phiên bản chỉ đổi nội dung đang xem. Dùng nút **Chọn phương án và tạo lại hồ sơ** khi muốn áp dụng phương án khả thi khác vào lượt có checkpoint. Thao tác này chạy lại các bước phụ thuộc và có thể dùng model đã cấu hình.
 
 Trong **Cấu hình**, tab **Chế độ chạy** lưu tùy chọn duyệt, vòng sửa và phong thủy cho bản nháp mới trong phiên hiện tại. Danh sách bước duyệt chỉ chỉnh được ở chế độ **Chọn bước cần duyệt**. **Model & API** hiển thị trạng thái cấu hình tại máy. **Tài liệu tham chiếu** cho tìm, xem văn bản và tải tệp dữ liệu đang có. Việc bổ sung hoặc gỡ tài liệu thực hiện trong thư mục dữ liệu của máy chủ.
@@ -70,6 +72,78 @@ Component Streamlit dùng [Three.js r181](https://github.com/mrdoob/three.js/tre
 ```
 
 Trên macOS/Linux, dùng `python3 -m venv .venv` và thay `.\.venv\Scripts\python.exe` bằng `.venv/bin/python`. CLI trả mã `0` khi hoàn thành hồ sơ sơ bộ, `1` khi còn lỗi ngăn bàn giao và `2` khi cần bổ sung yêu cầu. Trạng thái xác minh quy chuẩn được báo riêng.
+
+## Bot Telegram
+
+Bot cho phép giao việc cho đội agent, duyệt từng bước và nhận hồ sơ ngay trong Telegram. Lượt giao qua bot cũng hiện trên web và duyệt được ở cả hai nơi. Không bắt buộc dùng: chưa kết nối thì ứng dụng web vẫn chạy bình thường.
+
+### Bật bot
+
+1. Trong Telegram, nhắn **@BotFather**, gửi `/newbot`, đặt tên và username kết thúc bằng `bot`. BotFather trả về token dạng `123456789:AAH…`.
+2. Chạy ứng dụng, vào **Cấu hình → Telegram**, dán token và chọn **Kết nối**. Token được kiểm tra với Telegram trước khi lưu vào `.env`.
+3. Nhắn một tin cho bot vừa tạo. Bot trả lời mã tài khoản Telegram của bạn.
+4. Trở lại **Cấu hình → Telegram**, so đúng mã ở mục **Đang xin quyền** rồi chọn **Cho phép**. Tên hiển thị do người nhắn tự đặt nên cần đối chiếu theo mã.
+
+Những lần sau chỉ cần chạy ứng dụng và mở trang web một lần để bot bật lại. Chọn **Ngắt kết nối** để tắt bot và xóa token khỏi `.env`.
+
+### Giao việc
+
+Nhắn yêu cầu bằng tin nhắn thường (tối đa 3.000 ký tự), ví dụ:
+
+```text
+Đất 5x20 m ở Hà Nội, hướng Đông Nam, gia đình 4 người, 3 phòng ngủ, 1 phòng thờ, ngân sách 3 tỷ
+```
+
+Bot hỏi xác nhận rồi mới chạy. Chọn một chế độ:
+
+| Chế độ | Cách chạy |
+|---|---|
+| **Chạy tự động** | Chạy hết luồng, chỉ dừng khi yêu cầu thiếu hoặc mâu thuẫn |
+| **Duyệt bước chính** | Dừng để chọn phương án công năng và duyệt bản vẽ |
+| **Duyệt mọi bước** | Dừng ở mọi điểm duyệt |
+
+Tại điểm duyệt, bot gửi tóm tắt (kèm ảnh ở bước bản vẽ) và các nút **Đồng ý**, **Chọn A/B/C**, **Góp ý**, **Chạy lại**, **Dừng** tùy bước. Khi yêu cầu thiếu dữ liệu, nhắn phần còn thiếu. Khi yêu cầu mâu thuẫn, gửi lại toàn bộ yêu cầu đã sửa. Lượt xuất được hồ sơ sẽ tự gửi PDF, ZIP DXF, GLB, DXF 3D, DOCX và XLSX.
+
+| Lệnh | Tác dụng |
+|---|---|
+| `/trangthai` | Agent nào đang làm, đang chờ, đang rảnh |
+| `/agent` | Giao một agent làm lại. Thiết kế công năng nhận thêm góp ý khi đang chờ duyệt |
+| `/duyet` | Mở lại điểm duyệt đang chờ |
+| `/hoso` | Gửi lại bộ hồ sơ |
+| `/duan` | Các lượt đã giao gần đây, chọn lượt để điều khiển |
+| `/tamdung`, `/tieptuc`, `/dung` | Tạm dừng, chạy tiếp, dừng hẳn |
+| `/giao <yêu cầu>` | Giao việc mới bằng lệnh |
+| `/id`, `/help` | Mã tài khoản, hướng dẫn |
+
+### Bảo mật và giới hạn
+
+- Bot chỉ nhận **tin nhắn riêng** từ tài khoản được cho phép. Mỗi người chỉ điều khiển lượt do mình giao và có một lượt đang chạy hoặc chờ duyệt tại một thời điểm.
+- Giữ kín token. Nếu lộ, gửi `/revoke` cho @BotFather rồi nhập token mới. Không đưa `.env` lên git hoặc gửi cho người khác.
+- Ứng dụng web chưa có đăng nhập, ai mở được trang đều có thể cấp quyền dùng bot. Khi dùng trên máy cá nhân, thêm `--server.address localhost` vào lệnh chạy để chỉ máy đó truy cập được.
+- Yêu cầu và hồ sơ gửi qua bot sẽ đi qua máy chủ Telegram.
+- Bot chạy cùng tiến trình với ứng dụng web. Tắt ứng dụng thì bot ngừng trả lời.
+- Mỗi token chỉ dùng cho một ứng dụng đang chạy. Trang web cảnh báo khi có hai ứng dụng trên cùng dữ liệu (macOS/Linux).
+- Chưa hỗ trợ nhóm chat, tin thoại, ảnh hoặc tệp gửi đến bot.
+
+### Chuyển sang máy khác
+
+Không cần tạo lại bot. Tắt ứng dụng ở máy cũ, rồi chép `.env` sang máy mới hoặc nhập lại token (lấy ở @BotFather: `/mybots` → chọn bot → **API Token**) và cấp quyền lại trên web. `.env` không đi theo git. Lịch sử lượt nằm trong `monitoring/` và `outputs/` của máy cũ.
+
+```text
+TELEGRAM_BOT_TOKEN=...
+TELEGRAM_ALLOWED_USERS=mã1,mã2
+```
+
+### Xử lý lỗi
+
+| Hiện tượng | Cách xử lý |
+|---|---|
+| **Token không đúng dạng** hoặc **Telegram từ chối token** | Sao chép lại đủ phần số, dấu `:` và phần chữ. Gửi `/token` cho @BotFather để lấy lại |
+| **Không kết nối được Telegram** | Kiểm tra mạng, VPN hoặc tường lửa |
+| **Một tiến trình khác đang dùng bot này** | Tắt ứng dụng còn lại. Trên macOS/Linux, tìm bằng `ps aux \| grep "streamlit run"` |
+| Không thấy **Đang xin quyền** | Nhắn lại một tin cho đúng bot. Danh sách này được xóa khi khởi động lại ứng dụng |
+| Bot không trả lời | Kiểm tra ứng dụng đang chạy, đã mở trang web một lần và tab Telegram ghi **Đang hoạt động** |
+| Trang báo mã nguồn đã thay đổi | Dừng ứng dụng bằng Ctrl + C rồi chạy lại |
 
 ## Chín vai trò
 
@@ -109,6 +183,7 @@ Kết quả lưu trong `outputs/<mã-lượt>/releases/`. Mỗi lần xuất lư
 
 - Mặc định `LLM_PROVIDER=none`. Phân tích, phương án và nội dung dùng regex, thuật toán và mẫu. Đây là chế độ quy tắc; bộ kiểm thử sử dụng chế độ này hoặc mock có ghi nhãn, không gọi API thật.
 - Để bật LLM, chép `.env.example` thành `.env`, cài gói LangChain tương ứng trong `requirements.txt`, rồi đặt `LLM_PROVIDER`, `LLM_MODEL` và biến khóa của nhà cung cấp. Hỗ trợ Gemini, OpenAI, Anthropic và Ollama. Biến theo agent có dạng `LLM_PROVIDER_CONCEPT_ARCHITECT` hoặc `LLM_MODEL_REQUIREMENTS_ANALYST`. Xem danh sách hậu tố trong `.env.example`. Các bước hình học, phong thủy, công thức và đối chiếu tệp dùng code.
+- `TELEGRAM_BOT_TOKEN` và `TELEGRAM_ALLOWED_USERS` cấu hình [Bot Telegram](#bot-telegram), thường được nhập trong **Cấu hình → Telegram**.
 - `MAX_ITERATIONS` đặt mặc định từ 0 đến 3. Có thể chọn giới hạn trong **Cấu hình → Chế độ chạy** hoặc trong biểu mẫu của từng lượt. **0** thực hiện kiểm tra ban đầu. Mỗi lần Chủ nhiệm giao trả sửa tính một vòng chung cho lỗi phương án, ngân sách hoặc sai lệch hồ sơ. **Studio AI → Lịch sử kiểm định và vòng sửa** hiển thị agent, lần chạy, phản hồi, thay đổi và kết quả dựa trên log của lượt. `BUDGET_TOLERANCE` là 10%. `USE_CHROMA=1` áp dụng cho tra cứu RAG tùy chọn.
 - `data/don_gia.xlsx` chứa đơn giá giả định. `data/rules.json` và các bản tóm tắt là ngưỡng tham chiếu cho thiết kế sơ bộ. Với dữ liệu mẫu, báo cáo ghi **chưa đủ căn cứ**. Một đoạn RAG liên quan không xác nhận khả năng áp dụng.
 
