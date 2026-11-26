@@ -2,7 +2,7 @@
 
 ## Tài liệu đầu vào cho báo cáo môn Quản lý dự án
 
-Tài liệu đối chiếu mã và dữ liệu cục bộ trong thư mục dự án đang mở ngày **19/11/2026**. [Kế hoạch đề tài ban đầu](docs/planqlda.md) là tài liệu lịch sử. Các mục ghi **Hiện trạng** có căn cứ từ mã nguồn, cấu hình, kiểm thử hoặc hồ sơ lưu. Các mục ghi **Kế hoạch ban đầu**, **Đề xuất** và **Chưa có dữ liệu** có ý nghĩa riêng khi trích dẫn vào báo cáo. Ví dụ và phép kiểm trong tài liệu đã được giới hạn ở dữ liệu mẫu và các trường kỹ thuật cần thiết.
+Tài liệu đối chiếu mã và dữ liệu cục bộ trong thư mục dự án ngày **26/11/2026**, sau các thay đổi về quản lý agent, mô hình 3D, trạng thái agent và bot Telegram (tóm tắt ở mục 9.4). [Kế hoạch đề tài ban đầu](docs/planqlda.md) là tài liệu lịch sử. Các mục ghi **Hiện trạng** có căn cứ từ mã nguồn, cấu hình, kiểm thử hoặc hồ sơ lưu. Các mục ghi **Kế hoạch ban đầu**, **Đề xuất** và **Chưa có dữ liệu** có ý nghĩa riêng khi trích dẫn vào báo cáo. Ví dụ và phép kiểm trong tài liệu đã được giới hạn ở dữ liệu mẫu và các trường kỹ thuật cần thiết.
 
 ## 1. Tổng quan dự án
 
@@ -11,10 +11,10 @@ Tài liệu đối chiếu mã và dữ liệu cục bộ trong thư mục dự 
 - **Mục tiêu sản phẩm** là nhận brief tiếng Việt, lập và so sánh phương án, xuất hồ sơ sơ bộ nhất quán, giải thích quyết định và dữ liệu còn thiếu. Theo dõi phiên bản, bàn giao, lỗi và kết quả nghiệm thu của từng bước.
 - **Người dùng hướng tới** gồm người mô tả nhu cầu xây nhà và duyệt phương án, người rà soát thiết kế sơ bộ, nhóm sinh viên hoặc giảng viên xem demo và đánh giá cách quản lý công việc. Mã hiện tại chưa phân quyền theo nhóm người dùng.
 - **Phạm vi kỹ thuật** bao gồm bố trí nhà ở riêng lẻ dạng nhà phố hoặc nhà ống trên lô chữ nhật, 1–5 tầng. Khả năng bố trí phụ thuộc kích thước và nhu cầu công năng. Phạm vi xác minh giới hạn ở các phép kiểm đã cài đặt và nguồn áp dụng đã đối chiếu cho lô đất.
-- **Sản phẩm** gồm bản vẽ sơ bộ 2D PDF và DXF, thuyết minh DOCX, dự toán XLSX có công thức, kết quả kiểm tra kỹ thuật và xác minh quy chuẩn. Hệ thống lưu dữ liệu phiên bản và nhật ký bàn giao để truy vết.
-- **Giới hạn sản phẩm** bao gồm việc chưa hỗ trợ tính toán kết cấu, bản vẽ thi công hoặc hệ thống điện nước chi tiết, BIM/IFC hay phối cảnh kiến trúc đầy đủ. Sa bàn 3D phục vụ trình bày tiến độ. Mô hình nhà đặt trên sa bàn có thể lấy hình học từ thiết kế, ở mức khối sơ bộ.
+- **Sản phẩm** gồm bản vẽ sơ bộ PDF và DXF (mặt bằng, mặt đứng, mặt cắt và ba tờ phối cảnh 3D), mô hình 3D GLB và DXF 3D, thuyết minh DOCX, dự toán XLSX có công thức, kết quả kiểm tra kỹ thuật và xác minh quy chuẩn. Hệ thống lưu dữ liệu phiên bản và nhật ký bàn giao để truy vết. Người dùng giao việc và duyệt trên web hoặc qua bot Telegram.
+- **Giới hạn sản phẩm** bao gồm việc chưa hỗ trợ tính toán kết cấu, bản vẽ thi công hoặc hệ thống điện nước chi tiết, BIM/IFC hay phối cảnh dựng hình (render) chất lượng trình diễn. Mô hình 3D dựng từ mặt bằng sơ bộ bằng khối hộp. Bề dày tường, chiều cao cửa và tường chắn mái theo hằng số của bản vẽ 2D, chi tiết cửa và nội thất mang tính minh họa, mái luôn là mái bằng. Sa bàn văn phòng 3D phục vụ trình bày tiến độ, khác với mô hình 3D của ngôi nhà.
 
-Có thể kiểm tra tại [README](README.md), [kế hoạch ban đầu](docs/planqlda.md) mục 1–2, [bộ bố trí mặt bằng](tools/layout_algorithm.py) `compute_layout()`, [bộ xuất bản vẽ](tools/drawing_set.py) `build_sheets()` và `export_drawings()`.
+Có thể kiểm tra tại [README](README.md), [kế hoạch ban đầu](docs/planqlda.md) mục 1–2, [bộ bố trí mặt bằng](tools/layout_algorithm.py) `compute_layout()`, [bộ xuất bản vẽ](tools/drawing_set.py) `build_sheets()` và `export_drawings()`, [mô hình 3D](tools/model3d.py) `build_boxes()`.
 
 ## 2. Yêu cầu và chức năng
 
@@ -24,9 +24,11 @@ Có thể kiểm tra tại [README](README.md), [kế hoạch ban đầu](docs/p
 2. Tạo lượt thiết kế, tổ chức agent theo trạng thái, phân biệt tự động và điểm duyệt. Cho tạm dừng, tiếp tục hoặc dừng khi trạng thái và checkpoint hỗ trợ.
 3. Lập phương án, đối chiếu hình học, brief, ngân sách và căn cứ. Lưu quyết định chọn hoặc sửa phương án, xử lý phản hồi và tái tạo sản phẩm phụ thuộc.
 4. Xuất, xem và tải đúng phiên bản hồ sơ. Tách kiểm tra hình học, đối chiếu hồ sơ cuối và xác minh quy chuẩn. Ghi rõ nội dung thiếu căn cứ và cách bổ sung.
-5. Theo dõi sự kiện, công việc, lần thực hiện, thời gian xử lý và chờ, tài nguyên model và nghiệm thu. Lưu đánh giá theo phiên bản. Trình bày tiến độ bằng văn phòng 3D, lưu đồ và timeline.
+5. Theo dõi sự kiện, công việc, lần thực hiện, thời gian xử lý và chờ, tài nguyên model và nghiệm thu. Lưu đánh giá theo phiên bản. Trình bày tiến độ bằng văn phòng 3D, lưu đồ và timeline. Cho biết rõ agent nào đang làm, chờ người dùng, chờ đến lượt hoặc rảnh.
+6. Quản lý agent: đổi nhà cung cấp và model cho 6 agent lõi có gọi LLM, nhập khóa API, kiểm tra kết nối. Thêm, sửa, bật/tắt, xóa và chạy thử agent LLM tùy biến. Chín agent lõi cố định, không thêm/sửa/xóa trên giao diện.
+7. Giao việc, duyệt từng bước, giao agent làm lại và nhận hồ sơ qua bot Telegram cho tài khoản được cho phép.
 
-Có thể kiểm tra tại [trang Dự án](views/projects.py) `show_intake()`, [phân tích brief](tools/brief_parser.py) `inspect_request()`, [đồ thị](graph.py) `make_approval()`, [chạy nền](monitoring/runner.py) `Run`, [quản lý task](monitoring/tasks.py) `STAGES`, [trang Kết quả](views/results.py).
+Có thể kiểm tra tại [trang Dự án](views/projects.py) `show_intake()`, [phân tích brief](tools/brief_parser.py) `inspect_request()`, [đồ thị](graph.py) `make_approval()`, [chạy nền](monitoring/runner.py) `Run`, [quản lý task](monitoring/tasks.py) `STAGES`, [trang Kết quả](views/results.py), [Quản lý agent](views/agent_manager.py), [bot Telegram](telegram_bot/bot.py) `Bot`.
 
 ### 2.2. Yêu cầu phi chức năng thể hiện trong mã
 
@@ -34,24 +36,26 @@ Có thể kiểm tra tại [trang Dự án](views/projects.py) `show_intake()`, 
 |---|---|
 | Nhất quán và truy vết | Chung `DesignState` và bảng diện tích. Định danh phương án/phòng/tầng, có lịch sử theo bước và kiểm tra tệp trước khi xuất. |
 | Kiểm soát lỗi và vòng lặp | Có schema Pydantic, fallback quy tắc, giữ thông tin thiếu căn cứ, giới hạn số vòng tự động và lưu lỗi hoặc trạng thái kết thúc. |
-| Tiếp tục lượt | SQLite checkpoint, request chạy nền và lưu bản phát hành. Resume đọc checkpoint của lượt. Thao tác tạm dừng chốt ở mốc workflow và không ngắt giữa một lời gọi đang chạy. |
+| Tiếp tục lượt | SQLite checkpoint, request chạy nền và lưu bản phát hành. Resume đọc checkpoint của lượt. Thao tác tạm dừng chốt ở mốc workflow và không ngắt giữa một lời gọi đang chạy. Mỗi điểm duyệt có mã riêng: lệnh duyệt gửi từ nút cũ (web hoặc Telegram) bị từ chối khi điểm duyệt đã đổi. |
 | Giao diện và khả năng tiếp cận | Giao diện tiếng Việt, bố cục co theo màn hình, có nhãn trạng thái, phím điều khiển cảnh, tùy chọn giảm chuyển động và danh sách khi WebGL gặp lỗi. Tài nguyên Three.js đóng gói cục bộ. |
 | Chi phí và khả năng demo | Chạy được bằng quy tắc cục bộ, có nguồn hiệu suất mock và kịch bản 3D riêng. Hai nguồn minh họa có nhãn riêng. |
-| Bảo vệ dữ liệu | Khóa qua môi trường, có che bí mật trong log kỹ thuật và CSV. Dữ liệu mô tả yêu cầu và tên người chấm vẫn có thể cần bảo vệ khi chia sẻ. Chưa có hệ thống đăng nhập, phân quyền hoặc kiểm định bảo mật. |
+| Bảo vệ dữ liệu | Khóa API và token bot lưu trong `.env` (quyền 600, bỏ qua Git), giao diện chỉ hiện 4 ký tự cuối. Có che bí mật trong log kỹ thuật và CSV. Bot Telegram chỉ nhận tin riêng từ tài khoản được phép, mỗi người chỉ điều khiển lượt của mình. Dữ liệu mô tả yêu cầu và tên người chấm vẫn có thể cần bảo vệ khi chia sẻ, và nội dung gửi qua bot đi qua máy chủ Telegram. Chưa có hệ thống đăng nhập web, phân quyền hoặc kiểm định bảo mật. |
+| Vận hành một tiến trình | Bot và web dùng chung bộ điều khiển lượt trong một tiến trình. Khóa tệp `monitoring/app.lock` cho biết khi có ứng dụng khác chạy trên cùng dữ liệu và chỉ bật bot ở một ứng dụng. Trang cảnh báo khi mã nguồn đã đổi mà tiến trình còn giữ bản cũ. Khóa tệp chỉ có trên macOS/Linux. |
 
-Có thể kiểm tra tại [state](state.py), [runner](monitoring/runner.py), [phiên bản](monitoring/releases.py), [che bí mật](monitoring/redaction.py) `redact()`, [theme](.streamlit/config.toml), [cảnh 3D](studio3d/frontend/scene.js), [CSV hiệu suất](monitoring/performance.py) `csv_export()`.
+Có thể kiểm tra tại [state](state.py), [runner](monitoring/runner.py), [phiên bản](monitoring/releases.py), [che bí mật](monitoring/redaction.py) `redact()`, [theme](.streamlit/config.toml), [cảnh 3D](studio3d/frontend/scene.js), [CSV hiệu suất](monitoring/performance.py) `csv_export()`, [khóa API](api_keys.py), [chốt một tiến trình](app_guard.py), [runner](monitoring/runner.py) `Run.answer(expected=…)`.
 
-### 2.3. Năm mục điều hướng hiện tại
+### 2.3. Sáu mục điều hướng hiện tại
 
 | Mục | Hiện trạng | Mã đối chiếu |
 |---|---|---|
 | **Dự án** | Tổng quan từ các lượt lưu trong SQLite, tiếp tục lượt gần nhất, tìm kiếm, lọc trạng thái, phân trang. Form mô tả và trường cấu trúc, bản xem trước brief và giả định tính cục bộ, tùy chọn nâng cao. Bản nháp được giữ trong phiên Streamlit. Đơn vị trong danh mục hiện là lượt thiết kế. | [views/projects.py](views/projects.py) `show_catalog()`, `show_intake()`, `request_fields()`, [monitoring/events.py](monitoring/events.py) `list_runs()`. |
-| **Studio AI** | Có hai tab **Văn phòng 3D** và **Luồng công việc**. Chọn lượt, xem bước hiện tại, số vòng, trạng thái và lệnh điều khiển phù hợp. Có bảng chi tiết agent, duyệt và chỉnh công năng theo workflow, lịch sử vòng sửa, nhật ký bàn giao, phần dữ liệu kỹ thuật. Nút **Mở hồ sơ hiệu suất** dẫn đến trang riêng với agent đã lọc. | [views/studio.py](views/studio.py) `monitor()`, `status_header()`, `show_rounds()`, [ui_common.py](ui_common.py) `approval_box()`, [office.js](studio3d/frontend/office.js). |
-| **Công việc & Hiệu suất** | Mục độc lập ở sidebar. Ba tab **Công việc**, **Timeline**, **Hiệu suất**. Có bộ lọc lượt/agent/trạng thái hoặc khoảng ngày, loại task, model theo từng tab. Có lịch sử lần thực hiện, hộp thoại đánh giá task, biểu đồ và CSV dữ liệu đã lọc. | [views/tasks.py](views/tasks.py) `show_table()`, `task_dialog()`, `show_timeline()`, [views/task_reviews.py](views/task_reviews.py), [views/performance.py](views/performance.py) `show_performance()`. |
-| **Kết quả** | Chọn dự án và phiên bản. Bốn tab **Bản vẽ**, **Thuyết minh**, **Dự toán**, **Kiểm định**. Xem PNG đúng tờ và phiên bản, thu phóng/kéo/vừa khung, mở rộng hoặc toàn màn hình nếu trình duyệt hỗ trợ. Tải PDF, ZIP DXF, DOCX, XLSX khi tệp hợp lệ. Có so sánh phương án, tạo lại hồ sơ và kiểm định lại khi đủ điều kiện. Chọn để xem khác với thao tác áp dụng phương án. | [views/results.py](views/results.py) `drawing_preview()`, `download_cards()`, `review_panel()`, [drawing_viewer](drawing_viewer/__init__.py) `show()`, [monitoring/releases.py](monitoring/releases.py) `list_releases()`, `read_artifact()`. |
-| **Cấu hình** | Tab **Chế độ chạy** chọn tự động, duyệt tất cả hoặc chọn bước, bật/tắt phong thủy và đặt 0–3 vòng tự động cho lượt mới. Giá trị mặc định của giao diện lưu trong phiên. Tab **Model & API** đọc trạng thái cấu hình và gói kết nối. Tab **Tài liệu tham chiếu** tìm, xem văn bản và tải tệp cục bộ. Bổ sung hoặc gỡ nguồn qua thư mục trên máy chủ. | [views/settings.py](views/settings.py) `show_run_preferences()`, `show_models()`, `show_references()`, [llm.py](llm.py) `configuration_status()`. |
+| **Studio AI** | Có hai tab **Văn phòng 3D** và **Luồng công việc**. Chọn lượt, xem bước hiện tại, số vòng, trạng thái và lệnh điều khiển phù hợp. Bảng **Trạng thái agent** đếm và liệt kê từng agent (kể cả agent tùy biến) theo các trạng thái Đang làm việc, Chờ bạn, Sắp đến lượt, Chờ đến lượt, Rảnh, Tạm dừng, Gặp lỗi, Đã tắt. Khi lượt dừng chờ duyệt, trang hiện thông báo nổi và dòng nhắc ngay trên cảnh 3D. Có bảng chi tiết agent, duyệt và chỉnh công năng theo workflow, lịch sử vòng sửa, nhật ký bàn giao, phần dữ liệu kỹ thuật. Nút **Mở hồ sơ hiệu suất** dẫn đến trang riêng với agent đã lọc. | [views/studio.py](views/studio.py) `monitor()`, `status_header()`, `show_rounds()`, [ui_common.py](ui_common.py) `approval_box()`, [office.js](studio3d/frontend/office.js) `renderBoard()`, [status.mjs](studio3d/frontend/status.mjs) `activity()`. |
+| **Quản lý agent** | Ba tab. **Kết nối nhanh**: nhập/thay/gỡ khóa API Gemini, OpenAI, Anthropic, tải danh sách model từ tài khoản, kiểm tra kết nối và áp dụng một model cho 6 agent LLM. **Agent lõi**: bảng 9 agent (vai trò, model, trạng thái kết nối), đổi provider/model cho từng agent có gọi LLM, các thuộc tính khác bị khóa. **Agent tùy biến**: tạo agent LLM bằng biểu mẫu (tên, vai trò, nhiệm vụ, bước gắn sau, dữ liệu được đọc, model), bật/tắt, sửa, xóa, kiểm tra kết nối và chạy thử trên lượt đã có. | [views/agent_manager.py](views/agent_manager.py) `show_quick()`, `show_models()`, `show_custom_agents()`, [agent_settings.py](agent_settings.py), [api_keys.py](api_keys.py), [llm.py](llm.py) `test_connection()`. |
+| **Công việc & Hiệu suất** | Mục độc lập ở sidebar. Ba tab **Công việc**, **Timeline**, **Hiệu suất**. Danh sách công việc và Timeline gồm cả task của agent tùy biến (ghi nhãn tùy biến); tab Hiệu suất hiện tổng hợp 9 agent lõi. Có bộ lọc lượt/agent/trạng thái hoặc khoảng ngày, loại task, model theo từng tab. Có lịch sử lần thực hiện, hộp thoại đánh giá task, biểu đồ và CSV dữ liệu đã lọc. | [views/tasks.py](views/tasks.py) `show_table()`, `task_dialog()`, `show_timeline()`, [views/task_reviews.py](views/task_reviews.py), [views/performance.py](views/performance.py) `show_performance()`. |
+| **Kết quả** | Chọn dự án và phiên bản. Năm tab **Bản vẽ**, **Mô hình 3D**, **Thuyết minh**, **Dự toán**, **Kiểm định**. Xem PNG đúng tờ và phiên bản, thu phóng/kéo/vừa khung, mở rộng hoặc toàn màn hình nếu trình duyệt hỗ trợ. Tab Mô hình 3D đọc chính tệp GLB của phiên bản, cho xoay, đổi góc nhìn, ẩn/hiện từng tầng và cắt ngang. Tải PDF, ZIP DXF, GLB, DXF 3D, DOCX, XLSX khi tệp hợp lệ; hồ sơ cũ chưa có mô hình 3D được đề nghị tạo lại. Nhận xét của agent tùy biến hiện trong mục riêng. Có so sánh phương án, tạo lại hồ sơ và kiểm định lại khi đủ điều kiện. Chọn để xem khác với thao tác áp dụng phương án. | [views/results.py](views/results.py) `drawing_preview()`, `download_cards()`, `review_panel()`, [drawing_viewer](drawing_viewer/__init__.py) `show()`, [model_viewer](model_viewer/__init__.py) `show()`, [monitoring/releases.py](monitoring/releases.py) `list_releases()`, `read_artifact()`. |
+| **Cấu hình** | Tab **Chế độ chạy** chọn tự động, duyệt tất cả hoặc chọn bước, bật/tắt phong thủy và đặt 0–3 vòng tự động cho lượt mới. Giá trị mặc định của giao diện lưu trong phiên. Tab **Model & API** đọc trạng thái cấu hình, chỉnh sửa ở trang Quản lý agent. Tab **Tài liệu tham chiếu** tìm, xem văn bản và tải tệp cục bộ. Bổ sung hoặc gỡ nguồn qua thư mục trên máy chủ. Tab **Telegram** kết nối/ngắt bot bằng token (kiểm tra với Telegram trước khi lưu), xem trạng thái, cho phép hoặc gỡ tài khoản. | [views/settings.py](views/settings.py) `show_run_preferences()`, `show_models()`, `show_references()`, `show_telegram()`, [llm.py](llm.py) `configuration_status()`, [telegram_bot](telegram_bot/__init__.py). |
 
-**Workflow thực tế** có thể xử lý brief bằng quy tắc hoặc LLM tùy cấu hình. Dữ liệu thật trong giao diện là lịch sử thực thi backend, kể cả khi backend chạy quy tắc. Ở **chế độ mô phỏng**, cảnh 3D chạy kịch bản JavaScript, còn nguồn `Mock kiểm thử` ở trang Hiệu suất có dữ liệu mock, hoặc bộ mẫu cố định nếu nguồn đó chưa có bản ghi. **Chức năng còn thiếu** gồm quản lý dự án nhiều người và phân quyền, quản lý tệp quy chuẩn qua giao diện, triển khai production và xác minh pháp lý tổng thể cho lô đất mẫu. Tài liệu khảo sát chưa có bằng chứng về SLA, tải đồng thời ở quy mô lớn hoặc kiểm thử chuyên môn bởi người thẩm tra độc lập.
+**Workflow thực tế** có thể xử lý brief bằng quy tắc hoặc LLM tùy cấu hình. Dữ liệu thật trong giao diện là lịch sử thực thi backend, kể cả khi backend chạy quy tắc. Ở **chế độ mô phỏng**, cảnh 3D chạy kịch bản JavaScript, còn nguồn `Mock kiểm thử` ở trang Hiệu suất có dữ liệu mock, hoặc bộ mẫu cố định nếu nguồn đó chưa có bản ghi. Ngoài web, **bot Telegram** nhận yêu cầu, hỏi xác nhận chế độ chạy, gửi điểm duyệt kèm nút, ảnh bản vẽ và bộ hồ sơ (mục 5.4). **Chức năng còn thiếu** gồm đăng nhập web, quản lý dự án nhiều người và phân quyền, quản lý tệp quy chuẩn qua giao diện, triển khai production và xác minh pháp lý tổng thể cho lô đất mẫu. Tài liệu khảo sát chưa có bằng chứng về SLA, tải đồng thời ở quy mô lớn hoặc kiểm thử chuyên môn bởi người thẩm tra độc lập.
 
 ## 3. Công nghệ và kiến trúc
 
@@ -59,41 +63,47 @@ Có thể kiểm tra tại [state](state.py), [runner](monitoring/runner.py), [p
 
 | Hạng mục | Thành phần đang dùng |
 |---|---|
-| Backend và UI | Python, Streamlit, `st.navigation`, `st.session_state`, các component HTML/CSS/JavaScript. Venv khảo sát chạy Python **3.13.6**, Streamlit **1.67.0** và LangGraph **1.2.22**. README hướng dẫn Python 3.11. |
+| Backend và UI | Python, Streamlit, `st.navigation`, `st.session_state`, các component HTML/CSS/JavaScript. Venv khảo sát (`.venv-mac`) chạy Python **3.14.2**, Streamlit **1.67.0**, LangGraph **1.2.22**, langchain-core **1.8.4**. README hướng dẫn Python 3.11 trở lên. |
 | Workflow và kiểu dữ liệu | LangGraph `StateGraph`, `SqliteSaver` và `interrupt`. `DesignState` là TypedDict. Pydantic kiểm kiểu cho brief, đầu vào biểu mẫu, định hướng kiến trúc, rule xác minh và một số đầu ra. |
-| Model | Adapter LangChain cho `openai`, `gemini`, `anthropic`, `ollama`, cùng chế độ `none`. Các agent không nhất thiết dùng model ở mọi bước. Phong thủy, hình học, bóc giá và kiểm tệp có phép tính hoặc quy tắc cục bộ. |
+| Model | Adapter LangChain cho `openai`, `gemini`, `anthropic`, `ollama`, cùng chế độ `none`. Gói `langchain-openai` 1.8.3 và `langchain-google-genai` 4.5.2 đã cài; danh sách model Gemini/OpenAI đọc bằng SDK `google-genai` và `openai`. Các agent không nhất thiết dùng model ở mọi bước. Phong thủy, hình học, bóc giá và kiểm tệp có phép tính hoặc quy tắc cục bộ. |
 | Tra cứu | BM25 Python, PyPDF để đọc văn bản PDF. `USE_CHROMA=1` có đường tùy chọn ChromaDB và fallback BM25. Tra cứu trích đoạn có tiền tố nguồn trong `cite()` dùng BM25 trên nguồn lọc. |
-| Xuất hồ sơ | Matplotlib/Pillow cho PDF và PNG, ezdxf cho DXF, ZIP chuẩn Python, python-docx cho DOCX, openpyxl và Pycel cho XLSX và kiểm công thức. |
-| Hiển thị và lưu trữ | Three.js và OrbitControls cục bộ, WebGL 2, biểu đồ Altair/Streamlit, SQLite cho dữ liệu điều phối và quan sát, JSON và thư mục hồ sơ trên đĩa. |
+| Xuất hồ sơ | Matplotlib/Pillow cho PDF và PNG, ezdxf cho DXF và DXF 3D (lưới MESH), ZIP chuẩn Python, python-docx cho DOCX, openpyxl và Pycel cho XLSX và kiểm công thức. Tờ phối cảnh dùng bộ kết xuất độ sâu viết bằng NumPy (tô bóng, đổ bóng, nét khử khuất dạng vector). GLB 2.0 ghi trực tiếp bằng Python, không cần thư viện 3D ngoài. |
+| Hiển thị và lưu trữ | Three.js và OrbitControls cục bộ (dùng cho văn phòng 3D và trình xem mô hình), WebGL 2, biểu đồ Altair/Streamlit, SQLite cho dữ liệu điều phối và quan sát, JSON và thư mục hồ sơ trên đĩa. |
+| Kênh ngoài | Telegram Bot API qua `requests` (long polling `getUpdates`, không cần địa chỉ công khai). Tin nhắn văn bản thuần, tệp gửi tối đa 49 MB. |
 
-**Trên máy khảo sát**, `configuration_status()` báo 9 agent có cấu hình **OpenAI / `gpt-6-luna`** và trạng thái **Đã cấu hình · chưa thử kết nối**. Kết quả tổng hợp chỉ đọc của `task_attempts` có **8 bản ghi mang chuỗi model này** với số lượt gọi và dữ liệu token được ghi. Đây là tên cấu hình hoặc metadata đã lưu. Lần tổng hợp này dùng model tắt khi kiểm thử và không xác nhận khả dụng của tên model trên dịch vụ. Với `LLM_PROVIDER=none`, kết quả đến từ bộ quy tắc. Các adapter provider khác và Chroma là tùy chọn, chưa được xác minh bằng kết nối trong lần này.
+**Trên máy khảo sát**, `configuration_status()` báo 9 agent có cấu hình **OpenAI / `gpt-6-luna`** và trạng thái **Đã cấu hình · chưa thử kết nối**; 6 agent có gọi LLM lấy model từ `data/agent_settings.json`, 3 agent còn lại theo `.env`. Kết quả tổng hợp chỉ đọc của `task_attempts` có **78 bản ghi mang `gpt-6-luna`** và **1 bản ghi `gemini-2.5-flash`**. Trong phiên chỉnh sửa, nút kiểm tra kết nối đã nhận phản hồi từ `gpt-6-luna` và `gemini-2.5-flash` bằng khóa của chủ máy; một lượt ngày 24/11 có mọi lời gọi OpenAI lỗi rồi chuyển sang quy tắc, nguyên nhân chưa xác định. Đây là tên cấu hình hoặc metadata đã lưu. Lần tổng hợp này dùng model tắt khi kiểm thử và không xác nhận khả dụng của tên model trên dịch vụ. Với `LLM_PROVIDER=none`, kết quả đến từ bộ quy tắc. Các adapter provider khác và Chroma là tùy chọn, chưa được xác minh bằng kết nối trong lần này.
 
-Thứ tự cấu hình là biến môi trường của tiến trình (file `.env` chỉ bổ sung biến chưa có), hậu tố từng agent ưu tiên hơn cấu hình chung. Các biến chính là `LLM_PROVIDER`, `LLM_MODEL`, `LLM_TEMPERATURE`, `LLM_PRICE_PER_MTOK`, `MAX_ITERATIONS`, `USE_CHROMA`. Khóa theo provider được đọc từ môi trường. `invoke_structured()` dùng schema và thử lại có giới hạn. Khi client thiếu, lỗi hoặc hết quota, các bước có fallback dùng quy tắc hoặc đoạn mẫu. Tên model cấu hình và lịch sử quan sát là hai thông tin riêng.
+Thứ tự cấu hình model là **trang Quản lý agent** (`data/agent_settings.json`) → biến riêng của agent → biến chung. Biến môi trường của tiến trình ưu tiên hơn file `.env` (file chỉ bổ sung biến chưa có). Đổi nhà cung cấp mà không chọn model thì dùng model mặc định của nhà cung cấp mới. Temperature không chỉnh trên giao diện: giữ `LLM_TEMPERATURE` khi cùng nhà cung cấp với `.env`, nếu không thì 0,3 (OpenAI không gửi). Mỗi lượt chụp cấu hình model và agent tùy biến vào state lúc bắt đầu, nên đổi cấu hình chỉ áp dụng cho lượt mới. Các biến chính là `LLM_PROVIDER`, `LLM_MODEL`, `LLM_TEMPERATURE`, `LLM_PRICE_PER_MTOK`, `MAX_ITERATIONS`, `USE_CHROMA`, `TELEGRAM_BOT_TOKEN`, `TELEGRAM_ALLOWED_USERS`. Khóa theo provider được đọc từ môi trường. `invoke_structured()` dùng schema và thử lại có giới hạn. Khi client thiếu, lỗi hoặc hết quota, các bước có fallback dùng quy tắc hoặc đoạn mẫu. Tên model cấu hình và lịch sử quan sát là hai thông tin riêng.
 
-Có thể kiểm tra tại [config.py](config.py) `load_dotenv()`, `AGENT_ORDER`, [llm.py](llm.py) `PROVIDERS`, `agent_config()`, `configuration_status()`, `invoke_text()`, `invoke_structured()`, [requirements.txt](requirements.txt), [tools/rag.py](tools/rag.py), SQLite `monitoring/logs.db` chỉ đọc trường model và số đo tổng hợp.
+Có thể kiểm tra tại [config.py](config.py) `load_dotenv()`, `AGENT_ORDER`, [llm.py](llm.py) `PROVIDERS`, `env_config()`, `agent_config()`, `configuration_status()`, `test_connection()`, `invoke_text()`, `invoke_structured()`, [agent_settings.py](agent_settings.py) `snapshot()`, `run_settings`, [requirements.txt](requirements.txt), [tools/rag.py](tools/rag.py), SQLite `monitoring/logs.db` chỉ đọc trường model và số đo tổng hợp.
 
 ### 3.2. Thư mục và module chính
 
 | Đường dẫn | Nội dung |
 |---|---|
-| `app.py`, `views/`, `ui_common.py`, `ui_theme.py`, `assets/`, `.streamlit/` | Điểm vào, các trang và thành phần UI dùng chung. `views/home.py` tồn tại ở đường cũ, ẩn khỏi sidebar chính. |
+| `app.py`, `views/`, `ui_common.py`, `ui_theme.py`, `assets/`, `.streamlit/` | Điểm vào, các trang và thành phần UI dùng chung. `views/home.py` tồn tại ở đường cũ, ẩn khỏi sidebar chính. `app_guard.py` phát hiện ứng dụng chạy trùng hoặc giữ mã cũ. |
+| `agent_settings.py`, `api_keys.py` | Cấu hình model theo agent và agent tùy biến (JSON, có kiểm tra), nhập/gỡ khóa API trong `.env` và tải danh sách model. |
+| `telegram_bot/` | `api.py` gọi Telegram Bot API, `store.py` lưu ai giao lượt nào và đã báo tới đâu, `messages.py` soạn nội dung, `bot.py` xử lý lệnh, nút và thông báo, `__init__.py` bật/tắt bot và quản lý quyền. |
 | `graph.py`, `state.py`, `config.py`, `llm.py` | Đồ thị, schema, đường dẫn/cấu hình và adapter mô hình. |
-| `agents/` | Chín vai trò và decorator `agent_node()` đo/tạo sự kiện. Một số vai trò phụ trách nhiều node. |
-| `tools/` | Phân tích brief, bố trí, xây hình học, vẽ tờ, tra cứu, xác minh, tính chi phí, phong thủy và xuất tệp. |
+| `agents/` | Chín vai trò và decorator `agent_node()` đo/tạo sự kiện. Một số vai trò phụ trách nhiều node. `custom_agent.py` chạy agent tùy biến. |
+| `tools/` | Phân tích brief, bố trí, xây hình học, vẽ tờ, tra cứu, xác minh, tính chi phí, phong thủy và xuất tệp. `model3d.py` dựng mô hình 3D và xuất GLB/DXF 3D, `drawing_3d.py` kết xuất ba tờ phối cảnh. |
 | `monitoring/` | `runner.py` quản lý lượt và luồng nền. `events.py` lưu tiến độ. `tasks.py`, `timeline.py`, `task_reviews.py`, `rubrics.py`, `performance.py` phục vụ theo dõi. `tracker.py` đo sử dụng model. `releases.py` lưu/kiểm phiên bản và tệp. |
-| `studio3d/`, `drawing_viewer/`, `task_timeline/` | Component Streamlit cho văn phòng 3D, ảnh bản vẽ, timeline tương tác. |
+| `studio3d/`, `drawing_viewer/`, `model_viewer/`, `task_timeline/` | Component Streamlit cho văn phòng 3D, ảnh bản vẽ, mô hình 3D của ngôi nhà, timeline tương tác. `studio3d/frontend/status.mjs` quy định trạng thái hiển thị của agent. |
 | `data/`, `templates/`, `outputs/` | Bộ tham số, bảng đơn giá, bản tóm tắt nguồn, mô tả mẫu tệp và các hồ sơ được sinh. Các bộ xuất hiện dựng khung và tài liệu bằng mã. |
-| `main.py`, `evaluate.py`, `tests/`, `docs/` | CLI, chương trình đánh giá tập yêu cầu, kiểm thử và kế hoạch lịch sử. |
+| `main.py`, `evaluate.py`, `tests/`, `docs/`, `skills/` | CLI, chương trình đánh giá tập yêu cầu, kiểm thử, kế hoạch lịch sử và mô tả kỹ năng từng agent (tài liệu, code không đọc thư mục `skills/`). |
 
 ### 3.3. Kiến trúc, lưu trữ và cập nhật trạng thái
 
 ```mermaid
 flowchart LR
-    U["Người dùng hoặc người duyệt"] --> UI["Streamlit và 5 mục điều hướng"]
+    U["Người dùng hoặc người duyệt"] --> UI["Streamlit và 6 mục điều hướng"]
+    U --> TG["Bot Telegram trong cùng tiến trình"]
+    TG --> RM
+    TG -. "Long polling" .-> TAPI["Telegram Bot API"]
     CLI["CLI hoặc chương trình đánh giá"] --> G["LangGraph dùng DesignState"]
     UI --> RM["RunManager và luồng nền"]
     RM --> G
-    G --> AG["9 vai trò và các node phối hợp"]
+    G --> AG["9 vai trò, các node phối hợp và agent tùy biến"]
     AG --> TOOL["Bố trí, kiểm tra, dự toán và xuất bằng Python"]
     AG -. "Lời gọi tùy chọn" .-> MODEL["LangChain và provider đã cấu hình"]
     TOOL --> REF["Tài liệu, rules.json và bảng đơn giá"]
@@ -103,13 +113,16 @@ flowchart LR
     UI --> CP
     UI --> OBS
     UI --> OUT
-    UI <--> WEB["Component 3D, bản vẽ và Timeline"]
+    UI <--> WEB["Component văn phòng 3D, bản vẽ, mô hình 3D và Timeline"]
+    UI --> SET["agent_settings.json và .env"]
+    SET -. "Chụp vào state khi mở lượt" .-> G
 ```
 
 - **Checkpoint thiết kế.** `monitoring/checkpoints.db` ghi trạng thái đồ thị theo `thread_id` bằng `run_id`. Điểm duyệt dùng `interrupt()` và `Command(resume=...)`. `RunManager` giữ đối tượng chạy trong tiến trình và có thể mở lại thông tin từ checkpoint/lịch sử. Chế độ kiểm thử không persist dùng `MemorySaver`.
-- **Lịch sử vận hành.** `monitoring/logs.db` lưu `runs`, `events`, `tasks`, `task_attempts`, `task_reviews`. `stream_tracked()` đọc checkpoint và update với durability đồng bộ. Nhật ký có thời gian và thông tin chuyển bước, bản ghi mới có thời điểm UTC và tham chiếu attempt. Các bảng có khởi tạo và bổ sung cột cho dữ liệu cũ.
+- **Lịch sử vận hành.** `monitoring/logs.db` lưu `runs`, `events`, `tasks`, `task_attempts`, `task_reviews` và ba bảng của bot `telegram_state` (mốc tin đã nhận), `telegram_runs` (lượt do ai giao, đã báo tới đâu), `telegram_chats` (lượt đang chọn). `stream_tracked()` đọc checkpoint và update với durability đồng bộ. Nhật ký có thời gian và thông tin chuyển bước, bản ghi mới có thời điểm UTC và tham chiếu attempt. Các bảng có khởi tạo và bổ sung cột cho dữ liệu cũ.
 - **Bộ hồ sơ** được đặt dưới `outputs/<run_id>/`, có sản phẩm trung gian và `releases/<mã>/` lưu hồ sơ theo lần bàn giao. Snapshot JSON lưu số liệu và trạng thái. `archive_release()` sao chép ảnh xem trước theo phiên bản. `tracker` giữ prompt/phản hồi có giới hạn trong bộ nhớ phiên máy chủ.
-- **Giao diện** gọi hàm Python nội bộ của Streamlit. Component web trao dữ liệu và thao tác qua giao thức component `postMessage`. Studio theo dõi lượt chạy qua fragment định kỳ khoảng 1 giây khi đang chạy. Mục task/timeline đọc SQLite theo lượt. Kho mã đang khảo sát không có dịch vụ REST công khai dành riêng, hàng đợi worker ngoài tiến trình hay triển khai nhiều máy.
+- **Một bộ điều khiển cho mỗi lượt.** `RunManager.get()` có khóa để web và bot không mở hai đối tượng `Run` cho cùng lượt. `Run.answer()` trả về đã nhận lệnh hay chưa và từ chối khi mã điểm duyệt (`interrupt_id`) khác mã người duyệt đã xem. Bot Telegram chạy hai luồng nền (nhận tin, báo tiến độ) trong tiến trình Streamlit, được giữ ngoài các module để việc nạp lại mã không tạo bot thứ hai.
+- **Giao diện** gọi hàm Python nội bộ của Streamlit. Component web trao dữ liệu và thao tác qua giao thức component `postMessage`. Studio theo dõi lượt chạy qua fragment định kỳ khoảng 1 giây khi đang chạy. Mục task/timeline đọc SQLite theo lượt. Kho mã đang khảo sát không có dịch vụ REST công khai dành riêng, hàng đợi worker ngoài tiến trình hay triển khai nhiều máy. Kênh ngoài duy nhất là bot Telegram.
 
 Có thể kiểm tra tại [graph.py](graph.py) `build_graph()`, `sqlite_checkpointer()`, [runner](monitoring/runner.py) `Run._loop()`, `RunManager.get()`, [sự kiện](monitoring/events.py) `init_db()`, [run snapshot](agents/project_manager.py) `save_snapshot()`, [release](monitoring/releases.py), [component 3D](studio3d/component.py), [Studio](views/studio.py) `monitor()`.
 
@@ -128,6 +141,8 @@ Có thể kiểm tra tại [graph.py](graph.py) `build_graph()`, `sqlite_checkpo
 | **Tư vấn phong thủy** `fengshui_advisor` | Bước tùy chọn sau Triển khai bản vẽ, trước Kiểm định. Dùng dữ liệu brief và hình học để tính thông tin Bát trạch khi đủ đầu vào, đề xuất theo vị trí phòng thờ, WC và bếp. Trả `fengshui` cho các bước sau. Kết quả mang tính tư vấn, độc lập với kết luận quy chuẩn. | [agents/fengshui_advisor.py](agents/fengshui_advisor.py) `fengshui_checks()`, `run()`, [tools/fengshui.py](tools/fengshui.py) `analyze()`. |
 | **Dự toán chi phí** `cost_estimator` | Trước khi vẽ, tính hình học, đối chiếu và xếp phương án khả thi. Sau kiểm định, tính diện tích quy đổi, khối lượng, ngân sách so sánh và chi phí, dựng XLSX có công thức. Nếu ngân sách đã nhập bị vượt quá ngưỡng, chuyển phản hồi về điều phối. Có ghi chú LLM tùy chọn, giữ nguyên số liệu. | [agents/cost_estimator.py](agents/cost_estimator.py) `evaluate_option()`, `compare_options()`, `run()`, [tools/cost_calc.py](tools/cost_calc.py) `compute_cost()`, [tools/xlsx_writer.py](tools/xlsx_writer.py). |
 | **Kiểm tra hồ sơ cuối** `final_reviewer` | Nhận brief, chương trình phòng, layout, bảng diện tích, dự toán và tệp nháp. So khớp số tầng, phòng, diện tích, phiên bản, nội dung bảng tính và tài liệu. Điều phối sửa về đầu mối gây sai lệch hoặc chuyển xuất. Kết quả nhất quán hồ sơ độc lập với xác minh pháp lý. | [agents/final_reviewer.py](agents/final_reviewer.py) `audit()`, `run()` và các hàm kiểm PDF/DXF/DOCX/XLSX. |
+
+**Agent lõi và agent tùy biến.** Chín agent trên là agent lõi, định nghĩa trong code; giao diện chỉ cho đổi model của 6 agent có gọi LLM (Chủ nhiệm, Phân tích yêu cầu, Kiến trúc sư ý tưởng, Thiết kế công năng, Kiểm định, Dự toán). Triển khai bản vẽ, Tư vấn phong thủy và Kiểm tra hồ sơ cuối chạy thuật toán Python. **Agent tùy biến** do người dùng tạo trên trang Quản lý agent: một lời gọi LLM với nhiệm vụ tự mô tả, gắn sau một trong 10 điểm duyệt, chỉ đọc các khóa state đã chọn có sẵn tại bước đó. Agent tùy biến chỉ đưa nhận xét vào `custom_outputs`: không đổi nhánh đi, không sửa số liệu, không kích hoạt vòng sửa, không dùng RAG; khi không có model khả dụng thì ghi bỏ qua. Mã luôn có tiền tố `custom_`, tên không được trùng agent lõi. Xem [agents/custom_agent.py](agents/custom_agent.py) `make_hook()`, `pending()`, `run_one()`, [agent_settings.py](agent_settings.py) `validate_custom()`.
 
 **Agent** là vai trò phần mềm có input/output và quy tắc chuyển bước. Thành viên nhóm là người lập kế hoạch, viết mã, xác minh nguồn, chấm chuyên môn, tổ chức demo và viết báo cáo. Các vai trò người thực hiện được ghi ở mục 7 dưới dạng phân công dự kiến của kế hoạch cũ.
 
@@ -173,7 +188,7 @@ flowchart TD
     PUB -->|Hoàn tất lượt| RES["Sơ bộ cần xác minh hoặc đủ căn cứ trong phạm vi kiểm tra"]
 ```
 
-Sơ đồ rút gọn các node duyệt xen vào sau những bước được chọn. Thiếu căn cứ có thể đi tiếp theo nhánh **có thể tiếp tục**, với trạng thái xác minh riêng. Nếu hồ sơ nhất quán nhưng vẫn vượt ngân sách sau khi hết vòng sửa, thao tác xuất có thể giữ hồ sơ tham khảo và trạng thái lượt vẫn là **Chưa đạt**. Nhánh lỗi thực thi do ngoại lệ có thể xảy ra ở từng bước và được runner ghi trạng thái `error`. Workflow hiện hành đi tuần tự theo nhánh đã chọn. Phong thủy chạy ngay sau Triển khai bản vẽ (khi bật), sau đó Kiểm định quy chuẩn rồi mới đến Dự toán. Hai bước chạy tuần tự, không song song.
+Sơ đồ rút gọn các node duyệt xen vào sau những bước được chọn. Thiếu căn cứ có thể đi tiếp theo nhánh **có thể tiếp tục**, với trạng thái xác minh riêng. Nếu hồ sơ nhất quán nhưng vẫn vượt ngân sách sau khi hết vòng sửa, thao tác xuất có thể giữ hồ sơ tham khảo và trạng thái lượt vẫn là **Chưa đạt**. Nhánh lỗi thực thi do ngoại lệ có thể xảy ra ở từng bước và được runner ghi trạng thái `error`. Workflow hiện hành đi tuần tự theo nhánh đã chọn. Phong thủy chạy ngay sau Triển khai bản vẽ (khi bật), sau đó Kiểm định quy chuẩn rồi mới đến Dự toán. Hai bước chạy tuần tự, không song song. Sau mỗi điểm duyệt có một node `custom_after_<bước>`: khi luồng đi tiếp (không phải quay lại sửa hay kết thúc) và có agent tùy biến đang bật gắn sau bước đó, node chạy lần lượt các agent này rồi để luồng đi theo nhánh agent lõi đã chọn. Sơ đồ trên lược bỏ các node này.
 
 ### 5.2. Chọn, duyệt, sửa và dừng
 
@@ -196,6 +211,15 @@ Khi **thiếu dữ liệu**, kích thước bắt buộc hoặc dữ liệu xung
 
 Có thể kiểm tra tại [reviewer](agents/reviewer.py) `code_checks()`, `verification_items()`, [bằng chứng](tools/rules.py) `EvidenceReport`, `inspect_evidence()`, [hiển thị kết luận](tools/review_display.py) `review_rows()`, `quality_status()`, `preliminary_ready()`, [hướng dẫn nạp nguồn](README.md#bổ-sung-căn-cứ-cho-lô-đất).
 
+### 5.4. Giao việc qua Telegram
+
+1. Chủ máy tạo bot với @BotFather, dán token ở **Cấu hình → Telegram** và cho phép từng tài khoản theo mã. Người chưa được phép chỉ nhận một tin báo mã của họ.
+2. Người dùng nhắn yêu cầu (tối đa 3.000 ký tự) hoặc `/giao <yêu cầu>`. Bot hỏi xác nhận và chế độ: **Chạy tự động**, **Duyệt bước chính** (chọn phương án công năng, duyệt bản vẽ) hoặc **Duyệt mọi bước**. Mỗi người có tối đa một lượt đang chạy, chờ duyệt hoặc chờ bổ sung.
+3. Bot sửa một tin tiến độ (không quá một lần mỗi 3 giây) liệt kê trạng thái từng agent. Tại điểm duyệt, bot gửi tóm tắt theo bước, ảnh mặt bằng và phối cảnh ở bước bản vẽ, và nút **Đồng ý**, **Chọn A/B/C**, **Góp ý**, **Chạy lại**, **Dừng** (dừng cần xác nhận). Khi thiếu dữ liệu, tin nhắn tiếp theo được ghép vào yêu cầu; khi yêu cầu mâu thuẫn, người dùng gửi lại toàn bộ.
+4. Khi lượt xuất hồ sơ, bot gửi PDF, ZIP DXF, GLB, DXF 3D, DOCX, XLSX và ảnh xem trước. Lượt chưa đạt có nút **Thiết kế lại theo đề xuất**. Các lệnh khác: `/trangthai`, `/agent` (giao một agent làm lại), `/duyet`, `/hoso`, `/duan`, `/tamdung`, `/tieptuc`, `/dung`, `/id`, `/help`.
+
+Mốc tin đã nhận được ghi trước khi xử lý để một yêu cầu không chạy hai lần sau sự cố. Thông báo lỗi gửi được thử lại sau 30 giây, không gửi lặp khi khởi động lại. Lượt giao qua bot hiện và duyệt được trên web. Có thể kiểm tra tại [telegram_bot/bot.py](telegram_bot/bot.py) `handle()`, `notify()`, `_ask()`, [store](telegram_bot/store.py), [README](README.md#bot-telegram).
+
 ## 6. Mô hình văn phòng 3D
 
 ### 6.1. Không gian và tương tác
@@ -210,7 +234,7 @@ Có thể kiểm tra tại [reviewer](agents/reviewer.py) `code_checks()`, `veri
 | Tài chính | Dự toán chi phí |
 | Kiểm soát hồ sơ | Kiểm tra hồ sơ cuối |
 
-Bảy khu làm việc đi cùng **Bàn trưng bày dự án** và **Góc nghỉ**. Có thể xoay, thu phóng, đổi góc nhìn theo khu, chọn agent và xem bảng chi tiết. Avatar, ánh sáng tại bàn, màu và nhãn thay đổi theo chờ, xử lý, xử lý lại, phản hồi, lỗi, cần bổ sung hoặc chờ duyệt. Hoạt động khi rảnh gồm đi dạo, ghé xem mô hình và nghỉ, có công tắc riêng. Bàn trưng bày dựng mô hình khối theo kích thước, phân vùng và cao độ khi `project_geometry()` đọc được mặt bằng thích hợp. Trường hợp khác có nhãn mô hình minh họa.
+Bảy khu làm việc đi cùng **Bàn trưng bày dự án** và **Góc nghỉ**. Có thể xoay, thu phóng, đổi góc nhìn theo khu, chọn agent và xem bảng chi tiết. Avatar, ánh sáng tại bàn, màu và nhãn thay đổi theo trạng thái. Nhãn trên cảnh ghi trực tiếp trạng thái (ví dụ "Triển khai · Chờ bạn", "Dự toán · Rảnh"). `status.mjs` gộp mã sự kiện thành tám nhóm hiển thị dùng chung cho bảng trạng thái, nhãn cảnh, luồng công việc và bảng chi tiết: **Đang làm việc** (kèm tên bước và thời gian), **Chờ bạn**, **Sắp đến lượt**, **Chờ đến lượt**, **Rảnh** (kèm lý do), **Tạm dừng**, **Gặp lỗi**, **Đã tắt**. "Đang sửa lại" chỉ dùng khi chính bước đó chạy lần hai, không dùng khi một agent nhận một bước khác. Hoạt động khi rảnh gồm đi dạo, ghé xem mô hình và nghỉ, có công tắc riêng. Bàn trưng bày dựng mô hình khối theo kích thước, phân vùng và cao độ khi `project_geometry()` đọc được mặt bằng thích hợp. Trường hợp khác có nhãn mô hình minh họa.
 
 ### 6.2. Hoạt cảnh bàn giao đã triển khai
 
@@ -242,10 +266,10 @@ Bảng dưới tóm tắt **kế hoạch ban đầu 8 tuần**. Phụ thuộc l�
 
 ### 7.2. Công việc, tiến độ, timeline và nghiệm thu
 
-- Với **task theo bước**, `tasks.STAGES` khai báo người phụ trách là agent, tên, đầu vào và tiêu chí nghiệm thu cho 15 bước được theo dõi. Một task có khóa `run_id:stage`. Mỗi lần thực hiện có ID riêng, số thứ tự, mã thực thi checkpoint, đầu vào/ra, phiên bản, thời điểm giao, bắt đầu, kết thúc hoặc mời duyệt và quyết định. Có nguyên nhân chạy lại theo dữ liệu quan sát.
+- Với **task theo bước**, `tasks.STAGES` khai báo người phụ trách là agent, tên, đầu vào và tiêu chí nghiệm thu cho 16 bước được theo dõi. Mỗi agent tùy biến được tạo thành một task riêng có mã bằng mã agent (`stage_spec()` lấy mô tả từ cấu hình đã chụp vào lượt), xếp ngay sau bước được gắn. Một task có khóa `run_id:stage`. Mỗi lần thực hiện có ID riêng, số thứ tự, mã thực thi checkpoint, đầu vào/ra, phiên bản, thời điểm giao, bắt đầu, kết thúc hoặc mời duyệt và quyết định. Có nguyên nhân chạy lại theo dữ liệu quan sát.
 - **Trạng thái task** có thể là chờ, đang chạy, chờ duyệt, đã xử lý, lỗi hoặc hủy. `processed` và `acceptance` tách nhau. Lần chạy tự động có thể đã xử lý nhưng chưa có quyết định nghiệm thu của người dùng. Điều phối checkpoint và giao dịch SQLite dùng định danh để tránh giao việc trùng khi rerun UI. `RunManager.start()` nhận mã gửi form để chống tạo trùng trong tiến trình.
 - Trên **Timeline**, mỗi thanh biểu diễn khoảng xử lý và khoảng chờ người duyệt riêng, có mốc giao, hủy, bàn giao, chạy lại và yêu cầu sửa. Đầu mút mở chỉ kéo dài khi trạng thái phù hợp. Có bộ lọc, thu phóng và chi tiết. Lượt cũ thiếu mốc UTC hoặc liên kết attempt được báo thiếu dữ liệu, thay vì dựng biểu đồ giả.
-- Để **đánh giá theo phiên bản**, rubric `task-quality-v1` được lưu theo attempt. Khung điểm là đáp ứng yêu cầu **40**, chính xác/nhất quán **30**, chất lượng chuyên môn **20** và bàn giao **10**. Mục tự động dùng dữ liệu và phép kiểm đã lưu. Mục chuyên môn cần người chấm và bằng chứng. Mục chưa đo được có trạng thái **Chấm một phần** nếu làm thiếu điểm áp dụng. Mục không áp dụng được loại khỏi mẫu số. Kết quả hiển thị điểm gốc và thang điểm. Bản sửa đánh giá được thêm revision, chống ghi đè và trùng theo mã gửi. Tên người chấm là tự khai.
+- Để **đánh giá theo phiên bản**, rubric `task-quality-v1` được lưu theo attempt. Agent tùy biến dùng bộ tiêu chí chung `CUSTOM_RUBRIC` (có nhận xét do model lập, ghi bước gắn kèm và model, bàn giao nhận xét); lượt chạy không có model được ghi chưa chấm được. Bước xuất hồ sơ mới dùng phép `publish-files-v2` đối chiếu sáu tệp (thêm GLB và DXF 3D), phép `publish-files-v1` giữ nguyên cho attempt cũ. Khung điểm là đáp ứng yêu cầu **40**, chính xác/nhất quán **30**, chất lượng chuyên môn **20** và bàn giao **10**. Mục tự động dùng dữ liệu và phép kiểm đã lưu. Mục chuyên môn cần người chấm và bằng chứng. Mục chưa đo được có trạng thái **Chấm một phần** nếu làm thiếu điểm áp dụng. Mục không áp dụng được loại khỏi mẫu số. Kết quả hiển thị điểm gốc và thang điểm. Bản sửa đánh giá được thêm revision, chống ghi đè và trùng theo mã gửi. Tên người chấm là tự khai.
 
 Có thể kiểm tra tại [monitoring/tasks.py](monitoring/tasks.py) `STAGES`, `_attempt()`, `approval_pending()`, `approval_decided()`, [timeline](monitoring/timeline.py) `build_timeline()`, [rubrics](monitoring/rubrics.py) `snapshot()`, `evaluate()`, [task_reviews](monitoring/task_reviews.py) `save()`, [UI task](views/tasks.py).
 
@@ -271,9 +295,12 @@ Bộ lọc phân biệt `live`, `mock`, `simulation`. Khoảng ngày áp dụng 
 | Thiếu nguồn và dữ liệu lô hoặc áp dụng sai phạm vi | Tách kỹ thuật và xác minh. Có lý do, nguồn, manifest và kiểm tra PDF theo tiêu chí. | Hồ sơ quy hoạch/PDF gốc cho lô mẫu chưa có. Cần người có chuyên môn xác nhận phạm vi và cách đo. |
 | LLM trả định dạng khó dùng, quota hoặc mất kết nối | Pydantic, thử lại giới hạn, chế độ quy tắc. Python tính hình học/chi phí, đối chiếu số trước khi viết. | Đo riêng độ khớp của chế độ quy tắc và từng provider với dữ liệu kiểm thử công bố. Kế hoạch cũ nêu cache kết quả AI, còn mã hiện thấy cache client và công cụ tra cứu. |
 | Mặt bằng không khả thi hoặc vòng sửa không hội tụ | Phạm vi lô chữ nhật, kiểm kỹ thuật, điều phối theo lỗi và ngân sách 0–3 vòng. Có trạng thái Chưa đạt. | Thu thập ca lô hẹp và đánh giá tiêu chí công năng độc lập. |
-| Sai bản vẽ, chi phí hoặc phiên bản | Dùng nguồn chung và mã phiên bản. Kiểm nhãn PDF/DXF, DOCX và công thức XLSX trước khi phát hành. Trang Kết quả kiểm tệp và dấu phiên bản. | Tự động hóa thêm smoke test tích hợp trình duyệt trong CI là đề xuất. |
+| Sai bản vẽ, mô hình 3D, chi phí hoặc phiên bản | Dùng nguồn chung và mã phiên bản. Kiểm nhãn PDF/DXF, DOCX, công thức XLSX và mô hình 3D (GLB phải trùng từng byte với bản dựng lại từ mặt bằng, DXF 3D khớp lớp, số khối và kích thước) trước khi phát hành. Trang Kết quả kiểm tệp và dấu phiên bản. | Tự động hóa thêm smoke test tích hợp trình duyệt trong CI là đề xuất. |
 | Mở lại lượt cũ, thiếu mốc task hoặc bị ngắt tiến trình | SQLite checkpoint/lịch sử, snapshot và bản phát hành trên đĩa. Có hiển thị thiếu mốc. | Chưa có số liệu tải đông người, dự phòng dữ liệu hay truy cập liên máy. |
 | Chia sẻ nhầm dữ liệu hoặc tệp phát sinh | `.env`, `outputs/` và `monitoring/*.db` có mẫu bỏ qua Git. Log có hàm che bí mật. | Tại thời điểm rà soát, hai tệp `monitoring/checkpoints.db-shm` và `monitoring/checkpoints.db-wal` vẫn nằm trong danh sách Git theo dõi. Cần rà lại quy trình đóng gói. Redaction kỹ thuật không thay thế ẩn danh dữ liệu cá nhân trong brief, hồ sơ và đánh giá. |
+| Bot Telegram bị người lạ dùng, lộ token hoặc lộ dữ liệu khách | Chỉ nhận tin riêng từ tài khoản được phép, mỗi người chỉ điều khiển lượt của mình, xác nhận trước khi chạy, token trong `.env` và không có trong thông báo lỗi. | Trang web chưa có đăng nhập nên ai mở được trang đều cấp quyền được; nên chạy với `--server.address localhost`. Nội dung đi qua máy chủ Telegram. Chưa có giới hạn tần suất hay hạn mức chi phí theo người. |
+| Hai ứng dụng hoặc tiến trình giữ mã cũ cùng chạy | Khóa `app.lock`, cảnh báo trên trang, bot chỉ bật ở một ứng dụng, khóa khi mở lại lượt. | Đã gặp thực tế ngày 25/11: một tiến trình chạy ngầm từ 19/11 giữ cổng 8501 và gây lỗi giao diện, cần người dùng tự dừng. Khóa tệp chưa có trên Windows. |
+| Agent tùy biến cho nhận xét sai hoặc tốn chi phí | Chỉ tư vấn, không đổi số liệu hay nhánh đi; có tiêu chí nghiệm thu và nhãn model. | Chất lượng phụ thuộc prompt và model của người dùng. Nhận xét chưa đưa vào thuyết minh DOCX. |
 | Thiết bị thiếu WebGL hoặc chuyển chế độ xem | Cảnh đóng gói cục bộ, danh sách dự phòng, giảm chuyển động và lưu góc nhìn trong phiên trình duyệt. | Chưa có ma trận kiểm thử mọi thiết bị và trình duyệt. |
 
 Có thể kiểm tra tại [rủi ro trong kế hoạch cũ](docs/planqlda.md#10-rủi-ro-và-giải-pháp), [redaction](monitoring/redaction.py), [gitignore](.gitignore), [bảo toàn phiên bản](monitoring/releases.py), kết quả kiểm kê cục bộ bằng `git ls-files monitoring`.
@@ -287,7 +314,8 @@ Có thể kiểm tra tại [rủi ro trong kế hoạch cũ](docs/planqlda.md#10
 | Lượt thiết kế | `run_id` nối danh mục, LangGraph thread, thư mục kết quả, sự kiện và task. Yêu cầu và trường cấu trúc được chuyển thành `Brief`. |
 | Brief và phương án | `Brief` gồm `LoDat`, `GiaDinh`, `YeuCauPhong`, ngân sách, phong cách và giả định. Một lượt có thể có nhiều phương án. Mỗi chương trình có `phuong_an`, `option_version`, `revision_id`, mã tầng và mã phòng. |
 | Layout, bảng diện tích và kiểm định | `compute_layout()` dùng brief/phương án để dựng vùng xây dựng, phòng, lõi, cửa và kích thước. `build_area_table()` sinh số liệu về công năng và diện tích. Cùng layout/bảng diện tích cấp dữ liệu cho bản vẽ, phép kiểm, thuyết minh và dự toán. |
-| Bộ hồ sơ | Tệp nháp gắn phương án. `option_stamp()` tạo dấu ghép mã phương án, phiên bản và revision, lưu trong metadata phù hợp. Bộ hồ sơ phát hành có snapshot phiên bản và ảnh xem trước. |
+| Bộ hồ sơ | Tệp nháp gắn phương án. `option_stamp()` tạo dấu ghép mã phương án, phiên bản và revision, lưu trong metadata phù hợp (gồm `asset.extras` của GLB và metadata DXF 3D). Bộ hồ sơ phát hành có snapshot phiên bản và ảnh xem trước. |
+| Cấu hình agent và kênh ngoài | `data/agent_settings.json` lưu model theo agent và danh sách agent tùy biến; mỗi lượt chụp bản đang bật vào `state["agent_settings"]`, nhận xét lưu ở `state["custom_outputs"]`. `.env` lưu khóa API, token bot và mã tài khoản Telegram được phép. Các bảng `telegram_*` nối lượt với cuộc trò chuyện. |
 | Task, sự kiện, attempt, đánh giá | Một lượt có nhiều task và sự kiện. Một task có nhiều attempt. Một attempt có thể có nhiều revision đánh giá. Sự kiện mới có thể tham chiếu attempt. |
 | Nguồn dữ liệu | `data/rules.json` cung cấp ngưỡng tham khảo. `data/don_gia.xlsx` cung cấp giá/hệ số giả định. Các thư mục quy chuẩn và phong thủy đang có Markdown tóm tắt. Hồ sơ xác minh cho lô tồn tại khi quản trị viên bổ sung JSON và PDF phù hợp. |
 
@@ -299,12 +327,13 @@ Kho nguồn trong thư mục khảo sát có hai bản tóm tắt quy chuẩn v�
 
 | Sản phẩm | Định dạng và nội dung thực tế |
 |---|---|
-| Bản vẽ | `ban_ve.pdf` đóng tập. `ban_ve_dxf.zip` có một DXF mỗi tờ và trên đĩa còn có các DXF rời. PNG từng tờ phục vụ xem trước trong UI. Có mặt bằng tổng thể, từng tầng, mái, mặt đứng và mặt cắt dọc. Số tờ theo công thức số tầng + 4. |
+| Bản vẽ | `ban_ve.pdf` đóng tập. `ban_ve_dxf.zip` có một DXF mỗi tờ và trên đĩa còn có các DXF rời. PNG từng tờ phục vụ xem trước trong UI. Có mặt bằng tổng thể, từng tầng, mái, mặt đứng, mặt cắt dọc và ba tờ 3D không theo tỉ lệ: **Phối cảnh mặt tiền**, **Phối cảnh trục đo tổng thể**, **Phối cảnh tách tầng** (mỗi tầng cắt ở cao độ 1,35 m, có tên phòng). Số tờ theo công thức số tầng + 7. Trong DXF, tờ 3D chỉ có nét khử khuất, ảnh tô bóng chỉ có ở PDF/PNG. |
+| Mô hình 3D | `mo_hinh_3d.glb` (glTF 2.0, trục Y hướng lên, mặt tiền quay về +Z, nhóm theo Khu đất / Tầng 1…n / Mái và theo vật liệu) và `mo_hinh_3d.dxf` (đơn vị mm, mỗi lớp là tầng + vật liệu). Dựng từ `layout`: tường theo `wall_segments()` của mặt bằng, mặt trong tường bao trùng mặt bằng 2D và phần vượt ranh bị cắt, ô cửa theo `DOOR_SIZE`, cửa sổ bậu 0,9 m / đỉnh 2,3 m, sàn, cầu thang từng bậc, lan can, mái bằng, tường chắn mái, giếng trời mái kính, sân và nội thất lấy đúng vị trí đã vẽ trên mặt bằng. |
 | Thuyết minh | `thuyet_minh.docx` có brief, giả định, định hướng, thống kê diện tích theo tầng/phòng, kiểm định, phong thủy nếu có và dự toán tóm tắt. |
 | Dự toán | `du_toan.xlsx` có `Tong_hop`, `Dien_tich`, `Chi_tiet`, `Don_gia`, `Tiet_kiem` và `Gia_dinh` khi có dữ liệu phương án phù hợp. Tính theo khối lượng × đơn giá, cộng dự phòng, so sánh ngân sách và đề xuất tiết kiệm. |
 | Kiểm tra và nhật ký | Kết quả kiểm tra kỹ thuật/quy chuẩn trong state và thuyết minh, hiển thị tại Studio/Kết quả. `timeline.csv` vào thư mục bản phát hành. Có tải nhật ký/state từ phần kỹ thuật và xuất CSV hiệu suất từ trang riêng. |
 
-Có thể kiểm tra tại [bản vẽ](tools/drawing_set.py) `build_sheets()`, `export_drawings()`, [DOCX](tools/docx_writer.py) `write_description_docx()`, [XLSX](tools/xlsx_writer.py) `write_cost_xlsx()`, [publish](agents/project_manager.py) `publish()`. Định dạng PDF được xuất cho bản vẽ. Bản thuyết minh hiện xuất DOCX.
+Có thể kiểm tra tại [bản vẽ](tools/drawing_set.py) `build_sheets()`, `export_drawings()`, [DOCX](tools/docx_writer.py) `write_description_docx()`, [XLSX](tools/xlsx_writer.py) `write_cost_xlsx()`, [mô hình 3D](tools/model3d.py) `build_boxes()`, `glb_bytes()`, `write_dxf3d()`, `dxf_matches()`, [tờ 3D](tools/drawing_3d.py) `render()`, `floor_cutaways()`, [publish](agents/project_manager.py) `publish()`. Định dạng PDF được xuất cho bản vẽ. Bản thuyết minh hiện xuất DOCX.
 
 ### 8.3. Ví dụ từ lượt mẫu đã lưu
 
@@ -318,6 +347,8 @@ Các sự kiện của lượt lưu có yêu cầu trùng mẫu cho thấy trìn
 
 **Bản lưu** ghi phương án **B · v2**, **4 tầng**, **299,79 m²** sàn, **3 phòng ngủ**. Dự toán **2.581.534.965 VND**, chênh **81.534.965 VND** so với ngân sách. `vuot_pct` lưu **0,0326** (khoảng **3,26%**). Kiểm tra kỹ thuật **Đạt**. Kết quả còn **11 tiêu chí chưa đủ căn cứ đánh giá**. Trên đĩa có PDF, ZIP DXF, DOCX, XLSX và CSV timeline của lượt đó. Đây là một mẫu hồ sơ sơ bộ, đơn giá tham khảo và kết quả của riêng lượt này.
 
+Lượt thật mới nhất `20261126_074745_6ed2` (lô 5 × 20 m ở Hà Nội, giao qua bot Telegram ngày 26/11) kết thúc **Đã hoàn thành** và xuất đủ PDF 11 tờ (KT-09 đến KT-11 là ba tờ 3D), ZIP DXF, GLB, DXF 3D, DOCX, XLSX và timeline CSV. Các lượt hoàn tất trước khi có tính năng 3D không có GLB/DXF 3D.
+
 Để đối chiếu, đọc `runs` trong `monitoring/logs.db` với yêu cầu khớp `main.SAMPLE`. Đối chiếu `events` theo ID sự kiện, `state.json` cùng lượt và tên sản phẩm đã xuất. Lượt mẫu này có nhật ký sự kiện nhưng không có hàng `task_attempts` đi kèm trong bản DB đọc được. Vì vậy không quy đổi chuỗi sự kiện này thành điểm chất lượng, nghiệm thu hay hóa đơn API. Các bản ghi model nêu ở mục 3 là thống kê riêng của DB.
 
 ## 9. Kiểm thử, kết quả và cách demo
@@ -326,12 +357,13 @@ Các sự kiện của lượt lưu có yêu cầu trùng mẫu cho thấy trìn
 
 | Nhóm | Nội dung | Kết quả và căn cứ |
 |---|---|---|
-| Python | Brief và trường mâu thuẫn, quy tắc hình học, dự toán, xuất và đối chiếu PDF/DXF/DOCX/XLSX. Có test nhánh sửa, thiếu nguồn, đổi phương án, task, timeline, rubric, hiệu suất và che dữ liệu. | Tại lần rà soát này, `pytest -q` chạy **102 bài đạt** trong khoảng **80,46 giây**. Test dùng DB, checkpoint và đầu ra tạm, model tắt hoặc fixture/mock. Thời gian này là thời gian chạy test trên máy khảo sát. [Cấu hình test](tests/conftest.py), [test hệ thống](tests/test_system.py), [test workflow](tests/test_workflow_recheck.py), [test nguồn](tests/test_review_evidence.py), [test hiệu suất](tests/test_performance.py). |
-| JavaScript | Đi qua cửa, tránh vật cản và giữ khoảng cách, nhận việc khi đi dạo, gắn hồ sơ với người gửi, đổi tay, trả sửa, tránh lặp sự kiện và bàn giao song song. | Tại lần rà soát này, `node --test tests/studio_motion.test.mjs` có **7 bài đạt**. [Test chuyển động](tests/studio_motion.test.mjs). |
+| Python | Brief và trường mâu thuẫn, quy tắc hình học, dự toán, xuất và đối chiếu PDF/DXF/DOCX/XLSX. Có test nhánh sửa, thiếu nguồn, đổi phương án, task, timeline, rubric, hiệu suất và che dữ liệu. | Tại lần rà soát này, `pytest -q` chạy **163 bài đạt** trong khoảng **169 giây** (102 bài ở lần rà soát 19/11). Phần thêm gồm cấu hình model và agent tùy biến, khóa API, mô hình 3D (13 mặt bằng mẫu và một ca có sân trước: sàn đúng cao độ, ô cửa thông, nằm trong ranh), đối chiếu mô hình khi xuất, bot Telegram với máy chủ giả lập và chốt một tiến trình. Test dùng DB, checkpoint và đầu ra tạm, model tắt hoặc fixture/mock. Thời gian này là thời gian chạy test trên máy khảo sát. [Cấu hình test](tests/conftest.py), [test hệ thống](tests/test_system.py), [test workflow](tests/test_workflow_recheck.py), [test nguồn](tests/test_review_evidence.py), [test hiệu suất](tests/test_performance.py). |
+| JavaScript | Đi qua cửa, tránh vật cản và giữ khoảng cách, nhận việc khi đi dạo, gắn hồ sơ với người gửi, đổi tay, trả sửa, tránh lặp sự kiện và bàn giao song song. | Tại lần rà soát này, `node --test tests/*.test.mjs` có **10 bài đạt**: 7 bài chuyển động và 3 bài phân loại trạng thái agent. [Test chuyển động](tests/studio_motion.test.mjs), [test trạng thái](tests/studio_status.test.mjs). |
 | Kiểm tra Chrome đã ghi nhận trong các lượt chỉnh trước | Sa bàn với workflow cục bộ, kiểm đường tìm được cho 72 cặp gửi–nhận, bàn giao thường/trả sửa/đổi tab/giảm chuyển động. Sau khi gỡ tab hiệu suất trong Studio đã kiểm đúng hai tab, fallback từ lựa chọn cũ, phím mũi tên, trang riêng và liên kết hồ sơ agent. Các lần kiểm giao diện cũng đã thử mở bản vẽ, xem phiên bản và tải bốn định dạng. | Đây là ghi nhận kiểm tra trình duyệt trong phiên làm việc, phạm vi khác với hai bộ test tự động lưu trong kho mã. Có thể đối chiếu các hành vi với [office.js](studio3d/frontend/office.js), [trang task](views/tasks.py) và [trang kết quả](views/results.py). |
+| Kiểm tra trình duyệt trong phiên 25–26/11 | Chụp Chrome headless các tờ phối cảnh, trình xem mô hình 3D (đổi góc nhìn, ẩn tầng, cắt ngang) và bảng trạng thái agent khi đang chạy, chờ duyệt, hoàn tất. Streamlit AppTest mở mọi trang qua `app.py` với bản sao dữ liệu thật. | Ghi nhận thủ công trong phiên làm việc, không nằm trong bộ test tự động. Bot Telegram chỉ được test với máy chủ giả lập; lượt ngày 26/11 cho thấy bot đã chạy với Telegram thật. Chưa mở thử GLB/DXF 3D trong Blender hay AutoCAD. |
 | Đánh giá tập yêu cầu | `evaluate.py` có **12** ca trong `tests/test_requests.json`. Chạy mặc định giới hạn 3 vòng. Cờ `--ablation` thêm cấu hình 0 vòng. Có phép đo file, độ khớp yêu cầu, nhất quán, ngân sách, thời gian và token. | Lần khảo sát chưa thấy kết quả `outputs/evaluation/ket_qua_danh_gia.md` hoặc CSV, và chưa chạy benchmark 12 ca. Chưa có cơ sở nêu tỷ lệ hoàn thành, đạt quy chuẩn, tiết kiệm thời gian hay tác động của vòng lặp cho cả tập. [evaluate.py](evaluate.py) `evaluate()`, `summarize()`, [tập mẫu](tests/test_requests.json). |
 
-Khi diễn giải **benchmark**, `evaluate.py` hiện tính `hoan_thanh` theo sự tồn tại của tệp. Cờ này có thể khác với `outcome` của workflow khi vẫn xuất bộ tham khảo nhưng hết vòng và vượt ngân sách. Cột `dat_quy_chuan` hiện là boolean của `review.dat`, nên giá trị false có thể do thiếu căn cứ hoặc lỗi có bằng chứng. Báo cáo môn học cần ghi riêng các trạng thái trước khi suy ra tỷ lệ. Khảo sát chưa có chấm điểm 1–5 của 2–3 chuyên gia như kế hoạch gốc, kiểm thử kết nối model mới, đánh giá bảo mật hay kiểm thử tải.
+Khi diễn giải **benchmark**, `evaluate.py` hiện tính `hoan_thanh` theo sự tồn tại của tệp. Cờ này có thể khác với `outcome` của workflow khi vẫn xuất bộ tham khảo nhưng hết vòng và vượt ngân sách. Cột `dat_quy_chuan` hiện là boolean của `review.dat`, nên giá trị false có thể do thiếu căn cứ hoặc lỗi có bằng chứng. Báo cáo môn học cần ghi riêng các trạng thái trước khi suy ra tỷ lệ. Khảo sát chưa có chấm điểm 1–5 của 2–3 chuyên gia như kế hoạch gốc, đánh giá bảo mật hay kiểm thử tải.
 
 ### 9.2. Cài và chạy ở Windows PowerShell
 
@@ -343,7 +375,7 @@ python -m venv .venv
 .\.venv\Scripts\python.exe -m streamlit run app.py
 ```
 
-Mở `http://localhost:8501`. macOS/Linux dùng `python3 -m venv .venv` và thay đường dẫn Python bằng `.venv/bin/python`.
+Mở `http://localhost:8501`. macOS/Linux dùng `python3 -m venv .venv` và thay đường dẫn Python bằng `.venv/bin/python` (máy khảo sát dùng `.venv-mac`). Nên thêm `--server.address localhost` để chỉ máy đang chạy mở được trang, và chỉ chạy một ứng dụng trên mỗi thư mục dữ liệu; dừng bằng Ctrl + C. Bot Telegram bật cùng ứng dụng sau khi trang được mở một lần; cách kết nối ở [README](README.md#bot-telegram).
 
 Để **demo bằng quy tắc cục bộ** trên máy đã có cấu hình provider, đặt biến của phiên PowerShell trước khi chạy app hoặc CLI. Các lệnh sau giữ nhà cung cấp ở chế độ `none` cho cả cấu hình chung và từng agent.
 
@@ -371,7 +403,7 @@ node --test tests/studio_motion.test.mjs
 
 `main.py` có thêm `--no-fengshui`. CLI trả 0 khi hoàn thành, 1 khi còn vấn đề khiến lượt chưa đạt và 2 khi cần bổ sung yêu cầu. `evaluate.py` chạy toàn bộ tập mẫu theo cấu hình đã chọn và sinh báo cáo trong `outputs/evaluation/`. Lệnh JavaScript cần Node.js. CLI và benchmark có thể ghi vào thư mục kết quả và nhật ký mặc định.
 
-Khi **kiểm thử Python với dữ liệu tạm**, `tests/conftest.py` đặt biến `ARCHITECT_STATE_DIR` sang thư mục tạm nên `logs.db`, `checkpoints.db` và `outputs/` của test không ghi vào dữ liệu dự án, đồng thời tắt các provider. Biến này cũng dùng được khi chạy app hoặc CLI để tách dữ liệu demo.
+Khi **kiểm thử Python với dữ liệu tạm**, `tests/conftest.py` đặt biến `ARCHITECT_STATE_DIR` sang thư mục tạm nên `logs.db`, `checkpoints.db`, `outputs/` và `agent_settings.json` của test không ghi vào dữ liệu dự án, đồng thời tắt các provider và bot Telegram. Biến này cũng dùng được khi chạy app hoặc CLI để tách dữ liệu demo.
 
 ```powershell
 @'
@@ -390,7 +422,7 @@ raise SystemExit(code)
 '@ | .\.venv\Scripts\python.exe -B -
 ```
 
-Khi **dùng model tùy chọn**, cài gói tương ứng với provider, chẳng hạn `.\.venv\Scripts\python.exe -m pip install langchain-openai` cho OpenAI. Dùng `.env.example` làm mẫu biến trong file `.env` riêng hoặc biến môi trường. Chọn tên model mà tài khoản/provider hỗ trợ, cấp khóa bằng môi trường và kiểm tra trạng thái trên **Cấu hình → Model & API**. Mở phiên vỏ mới hoặc gỡ các override `none` của phiên demo trước khi dùng cấu hình provider. Thiết lập này có thể phát sinh phí theo các bước gọi model.
+Khi **dùng model tùy chọn**, cài gói tương ứng với provider (`requirements.txt` đã gồm `langchain-openai` và `langchain-google-genai`). Dùng `.env.example` làm mẫu biến trong file `.env` riêng hoặc biến môi trường. Chọn tên model mà tài khoản/provider hỗ trợ, cấp khóa bằng môi trường và kiểm tra trạng thái trên **Quản lý agent → Kết nối nhanh** (nhập khóa ngay trên giao diện) hoặc **Cấu hình → Model & API**. Mở phiên vỏ mới hoặc gỡ các override `none` của phiên demo trước khi dùng cấu hình provider. Thiết lập này có thể phát sinh phí theo các bước gọi model.
 
 Có thể kiểm tra tại [README](README.md#chạy-trên-windows-powershell), [requirements](requirements.txt), [mẫu biến](.env.example), [CLI](main.py), [benchmark](evaluate.py), [test setup](tests/conftest.py).
 
@@ -398,13 +430,25 @@ Có thể kiểm tra tại [README](README.md#chạy-trên-windows-powershell), 
 
 | Điểm đối chiếu | Kế hoạch ban đầu | Hiện trạng xác nhận được |
 |---|---|---|
-| Đội ngũ và UI | Năm vai trò agent, thư mục `pages/`, kế hoạch UI quản lý agent gộp chung. | Chín vai trò trong `config.py`, năm mục trong `app.py` dùng `views/`. Studio có đúng hai tab. Công việc & Hiệu suất là trang riêng. |
+| Đội ngũ và UI | Năm vai trò agent, thư mục `pages/`, kế hoạch UI quản lý agent gộp chung. | Chín vai trò lõi trong `config.py` cộng agent LLM tùy biến tạo trên giao diện, sáu mục trong `app.py` dùng `views/`. Quản lý agent là trang riêng. Studio có đúng hai tab. Công việc & Hiệu suất là trang riêng. |
 | Kiểm định, phong thủy và nguồn | Một vai trò kiểm định kiêm phong thủy, mô tả ChromaDB và tài liệu PDF quy chuẩn. | Hai vai trò tách riêng. Kho mẫu có tóm tắt Markdown, BM25 là đường mặc định và dùng cho căn cứ tham khảo có tiền tố. Xác minh cần PDF và bản ghi theo lô. |
-| Sản phẩm | Thuyết minh DOCX hoặc PDF, giao diện kết quả ba tab. Phối cảnh 3D nằm ngoài phạm vi thiết kế ban đầu. | Thuyết minh DOCX, PDF cho bản vẽ, Kết quả bốn tab và bản xem trước PNG thật. Có sa bàn và khối minh họa dự án 3D, còn phối cảnh thiết kế/BIM chưa có. |
+| Sản phẩm | Thuyết minh DOCX hoặc PDF, giao diện kết quả ba tab. Phối cảnh 3D nằm ngoài phạm vi thiết kế ban đầu. | Thuyết minh DOCX, PDF cho bản vẽ có ba tờ phối cảnh 3D, mô hình GLB và DXF 3D dựng từ mặt bằng, Kết quả năm tab có trình xem 3D và bản xem trước PNG thật. BIM/IFC và phối cảnh render chưa có. |
 | Quản lý tiến độ và sửa | Hai vòng lặp theo quy chuẩn/ngân sách trong mô tả, kế hoạch 8 tuần. | Giới hạn chung 0–3 vòng cho nhiều nhóm lỗi, thêm đối chiếu cuối, phiên bản và dữ liệu theo dõi attempt. Kế hoạch tuần vẫn là mốc dự kiến. |
+| Kênh làm việc | Giao diện web. | Web và bot Telegram dùng chung một bộ điều khiển lượt. Zalo đã khảo sát, chưa làm. |
 | Đánh giá và chi phí | Dự kiến 10–15 yêu cầu, chấm chuyên môn và đối chiếu đơn giá với tham khảo thị trường. | Có 12 yêu cầu benchmark, test kỹ thuật và rubric theo task. Chưa có kết quả đánh giá trọn tập, kết quả chuyên gia hoặc đối chiếu giá thị trường trong dữ liệu khảo sát. |
 
 Có thể kiểm tra tại [tài liệu lịch sử](docs/planqlda.md), [README hiện tại](README.md), [app.py](app.py), [workflow](graph.py) và [bộ xuất](tools/drawing_set.py).
+
+### 9.4. Thay đổi từ 19/11 đến 26/11/2026
+
+| Nhóm | Thay đổi | Mã chính |
+|---|---|---|
+| Quản lý agent | Trang mới: đổi model cho 6 agent LLM, khóa 9 agent lõi, nhập khóa API, tải danh sách model, kiểm tra kết nối, agent LLM tùy biến. Bỏ chỉnh temperature trên giao diện. | `views/agent_manager.py`, `agent_settings.py`, `api_keys.py`, `agents/custom_agent.py` |
+| Theo dõi công việc | Agent tùy biến có task, tiêu chí nghiệm thu và hàng riêng trên Timeline. | `monitoring/tasks.py` `stage_spec()`, `monitoring/rubrics.py`, `monitoring/timeline.py` |
+| Trạng thái agent | Tám nhóm trạng thái dùng chung, bảng Trạng thái agent, nhãn trên cảnh, sửa lỗi báo nhầm "Đang xử lý lại". Thông báo khi lượt dừng chờ duyệt. | `studio3d/frontend/status.mjs`, `studio3d/data.py`, `agents/base.py`, `views/studio.py` |
+| Hồ sơ 3D | Ba tờ phối cảnh trong PDF/DXF, GLB và DXF 3D, tab Mô hình 3D, đối chiếu mô hình ở Kiểm tra hồ sơ cuối. | `tools/model3d.py`, `tools/drawing_3d.py`, `model_viewer/`, `agents/final_reviewer.py` |
+| Kênh Telegram | Bot giao việc, duyệt, giao agent làm lại, gửi hồ sơ; tab cấu hình và cấp quyền. | `telegram_bot/`, `views/settings.py` `show_telegram()` |
+| Độ tin cậy | Mã điểm duyệt cho lệnh duyệt, khóa mở lại lượt, chốt một tiến trình và cảnh báo mã cũ. | `monitoring/runner.py`, `app_guard.py` |
 
 ## 10. Thông tin cần bổ sung và dàn ý báo cáo
 
@@ -423,12 +467,12 @@ Có thể kiểm tra tại [tài liệu lịch sử](docs/planqlda.md), [README 
 ### 10.2. Đề xuất dàn ý báo cáo
 
 1. **Mở đầu và bài toán quản lý**. Bối cảnh thiết kế sơ bộ, người dùng, mục tiêu, phạm vi, sản phẩm và tiêu chí nghiệm thu đề tài.
-2. **Phân tích yêu cầu và phạm vi thực tế**. Năm mục UI, chức năng thực, mô phỏng, giới hạn và các thay đổi so với kế hoạch gốc.
+2. **Phân tích yêu cầu và phạm vi thực tế**. Sáu mục UI, bot Telegram, chức năng thực, mô phỏng, giới hạn và các thay đổi so với kế hoạch gốc.
 3. **Tổ chức và kế hoạch**. WBS, mốc tám tuần dự kiến, phụ thuộc, phân công con người sau khi xác nhận, các vai trò agent và cơ chế nghiệm thu.
-4. **Thiết kế và triển khai hệ thống**. Kiến trúc và workflow Mermaid, trạng thái chung, checkpoint, kỹ thuật tính toán/xác minh, lưu trữ và sa bàn 3D.
+4. **Thiết kế và triển khai hệ thống**. Kiến trúc và workflow Mermaid, trạng thái chung, checkpoint, kỹ thuật tính toán/xác minh, mô hình 3D, agent tùy biến, kênh Telegram, lưu trữ và sa bàn 3D.
 5. **Quản lý tiến độ, chất lượng và rủi ro**. Task/attempt, bảng chỉ số, review có phiên bản, ngân sách, rủi ro dữ liệu/API và biện pháp.
-6. **Thử nghiệm và demo**. Một lượt có tệp và log đã ẩn danh, kết quả test 102 Python + 7 JavaScript, thêm kết quả benchmark và góp ý chuyên môn nếu thu thập được.
-7. **Kết luận, giới hạn và hướng phát triển**. Tổng kết hiện trạng, vấn đề cần xác minh, các hạng mục dự kiến như mở rộng kiểu lô, BIM và hồ sơ chuyên ngành.
+6. **Thử nghiệm và demo**. Một lượt có tệp và log đã ẩn danh, kết quả test 163 Python + 10 JavaScript, thêm kết quả benchmark và góp ý chuyên môn nếu thu thập được.
+7. **Kết luận, giới hạn và hướng phát triển**. Tổng kết hiện trạng, vấn đề cần xác minh, các hạng mục dự kiến như mở rộng kiểu lô, BIM/IFC, đăng nhập web, kênh Zalo và hồ sơ chuyên ngành.
 8. **Phụ lục**. Hướng dẫn chạy, sơ đồ dữ liệu, bảng kiểm thử, hình giao diện và tệp mẫu phù hợp để chia sẻ.
 
 Các số liệu cần đưa vào báo cáo nên gắn loại nguồn và phạm vi. Hồ sơ mẫu mô tả một lượt, test tự động mô tả độ phủ chức năng trong môi trường kiểm thử, còn mốc kế hoạch và phân công cần nhóm xác nhận.
